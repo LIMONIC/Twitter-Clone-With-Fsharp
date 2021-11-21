@@ -56,8 +56,8 @@ type API =
     // | ReTweet of (string)// userid, pass, tweet_id
     // | Follow of (string)// userid, pass, user_id
     // | UnFollow of (string)// userid, pass, user_id
-    | Req of (string)
-    | Res of (string)
+    | Req of (string) // request
+    | Res of (string) // response
 
 type Msg = 
     | Register of (string*string*JsonValue)// userid, pass
@@ -122,6 +122,20 @@ let dbInsert queryStr =
 
 let parseRes status msg content = 
     sprintf """{"status": "%s","msg":"%s","content":%s}""" status msg content
+
+let getSubscribedTweet userId =
+    let query = $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp desc"
+    let reader = dbQueryMany query
+    let mutable content = []
+    if  reader.HasRows then
+        while reader.Read() do
+            let tweetInfo = sprintf """{"text": "%s","tweetId":"%s","userId":"%s", "timestamp":"%s"}"""
+                                (reader.["content"].ToString())
+                                (reader.["id"].ToString())
+                                (reader.["id"].ToString())
+                                (System.Convert.ToDateTime(reader.["timestamp"]).ToString("s"))
+            content <- content @ [tweetInfo]
+    content
 
 let isUserExist userId =
     connection.Open()
@@ -395,6 +409,54 @@ let UnFollowHandler (mailbox:Actor<_>) =
                     resJsonStr <- parseRes status msg """[]"""
                     sender <! Res(resJsonStr)
                     return! loop()
+                // query user relation
+                let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{unfollowUserId}'"
+                if userRelationId = "error" then
+                     msg <- $"You are not following user {unfollowUserId}."
+                else
+                // process unfollow
+                    let res = dbInsert $"delete from UserRelation where id='{userRelationId}'"
+                    if res <> 1 then 
+                        msg <- $"Unfollow user {unfollowUserId} failed. Please try again."
+                    else
+                        status <- "success"
+                        msg <- "Retweet success."
+            else 
+                msg <- "User is not logged in, please log in again."
+            resJsonStr <- parseRes status msg """[]"""
+            sender <! Res(resJsonStr)
+        | _ -> ()
+        return! loop()
+    }
+    loop()
+
+let QueryHandler (mailbox:Actor<_>) =
+    let rec loop () = actor {
+        let! message = mailbox.Receive()
+        let sender = mailbox.Sender()
+        if debug then printfn $"[DEBUG]QueryHandler receive msg: {message}"
+        // let mutable userIdSet = Set.empty
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        match message with
+        | Query(userId, props) -> 
+            let operation = try props?operation.AsString() with |_ -> ""
+            // user must already logged in
+            if isUserLoggedIn userId then 
+            // must has operation
+                if (operation = "") then
+                    msg <- "Please specify which user you want to unfollow."
+                    resJsonStr <- parseRes status msg """[]"""
+                    sender <! Res(resJsonStr)
+                    return! loop()
+                match operation with
+                | "subscribe " -> 
+
+                | "all" ->
+                | "tag" ->
+                | "mention" -> 
+                | _ -> failwith "exception"
                 // query user relation
                 let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{unfollowUserId}'"
                 if userRelationId = "error" then

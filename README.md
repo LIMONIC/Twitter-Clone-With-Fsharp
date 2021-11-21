@@ -8,7 +8,7 @@
     "api":"",
     "auth":{
         "id":"t10000",
-        "password":1985
+        "password":"1985"
     },
     "props":{
         "content":"test001",
@@ -22,7 +22,7 @@
     "api":"",
     "auth":{
         "id":"t10000",
-        "password":1985
+        "password":"1985"
     },
     "props":{
         "tweetId":"test001",
@@ -36,7 +36,7 @@
     "api":"",
     "auth":{
         "id":"t10000",
-        "password":1985
+        "password":"1985"
     },
     "props":{
         "userId":"test001"
@@ -48,7 +48,7 @@
     "api":"",
     "auth":{
         "id":"t10000",
-        "password":1985
+        "password":"1985"
     },
     "props":{
         "userId":"test001"
@@ -60,10 +60,9 @@
     "api":"",
     "auth":{
         "id":"t10000",
-        "password":1985
+        "password":"1985"
     },
     "props":{
-        "target":"" // tag || mention
+        "operation":"" // subscribe || tag || mention || all
     }
-}
-```
+}```
