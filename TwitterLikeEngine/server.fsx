@@ -110,7 +110,6 @@ let dbQuery queryStr =
         selectCommand.ExecuteScalar().ToString()
     with 
         | _ -> "error"
-    
 
 let dbQueryMany queryStr =
     let selectCommand = new SQLiteCommand(queryStr, connection)
@@ -132,10 +131,10 @@ let isUserExist userId =
 let isUserLoggedIn userId = 
     authedUserSet.Contains(userId)
 /// Generate SHA1
-let getSHA1Str _ = 
+let getSHA1Str input = 
     let removeChar (stripChars:string) (text:string) =
         text.Split(stripChars.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) |> String.Concat
-    System.Convert.ToString(DateTime.Now)
+    System.Convert.ToString(DateTime.Now) + input
     |> Encoding.ASCII.GetBytes
     |> (new SHA1Managed()).ComputeHash
     |> System.BitConverter.ToString
@@ -146,7 +145,7 @@ let RegisterHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
-        printfn "worker acotr receive msg: %A" message
+        if debug then printfn $"[DEBUG]RegisterHandler receive msg: {message}"
         // let mutable userIdSet = Set.empty
         let mutable status = "error"
         let mutable msg = "Internal error."
@@ -184,7 +183,7 @@ let LoginHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
-        if debug then printfn $"LoginHandler receive msg: {message}"
+        if debug then printfn $"[DEBUG]LoginHandler receive msg: {message}"
         // let mutable userIdSet = Set.empty
         let mutable status = "error"
         let mutable msg = "Internal error."
@@ -223,16 +222,17 @@ let TweetHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
-        printfn "worker acotr receive msg: %A" message
+        if debug then printfn $"[DEBUG]TweetHandler receive msg: {message}"
         // let mutable userIdSet = Set.empty
         let mutable status = "error"
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
+        let mutable isSuccess = true
         match message with
         | Tweet(userId, props) ->
             let content = try props?content.AsString() with |_ -> ""
-            let hashtag = try props?hashtag.AsString() with |_ -> ""
-            let mention = try props?mention.AsString() with |_ -> ""
+            let hashtag = try props?hashtag.AsArray() with |_ -> [||]
+            let mention = try props?mention.AsArray() with |_ -> [||]
             // user must already logged in
             if isUserLoggedIn userId then 
             // tweet mush has content
@@ -242,22 +242,36 @@ let TweetHandler (mailbox:Actor<_>) =
                     sender <! Res(resJsonStr)
                     return! loop()
                 // process tweet
-                let res = dbInsert "insert into Tweet(id, content, publish_user_id, timestamp) values ({getSHA1Str()}, {content}, {userId}, {DateTime.Now})"
-                if res = 1 then 
+                let tweetId = getSHA1Str ""
+                let res = dbInsert "insert into Tweet(id, content, publish_user_id, timestamp) values ({tweetId}, {content}, {userId}, {DateTime.Now})"
+                if res <> 1 then 
+                    msg <- "Tweet send failed. Please try again."
+                    isSuccess <- false
+                // process tag
+                if hashtag.Length > 0 then
+                    [for tag in hashtag -> (
+                            let tagId = getSHA1Str (tag.AsString())
+                            let dbRes = dbInsert "insert into HashTag(id, tag_name, tweet_id) values ({tagId}, {hashtag}, {tweetId})"
+                            if dbRes <> 1 then
+                                msg <- "HashTag are not added properly."
+                                isSuccess <- false
+                    )] |> ignore                        
+                // process mention
+                if mention.Length > 0 then
+                    [for user in mention -> 
+                            let mentionId = getSHA1Str (user.AsString())
+                            let dbRes = dbInsert "insert into Mention(id, user_id, tweet_id) values ({mentionId}, {user}, {tweetId})"
+                            if dbRes <> 1 then 
+                                msg <- "Mention are not added properly."
+                                isSuccess <- false
+                    ] |> ignore
+                if isSuccess then 
                     status <- "success"
                     msg <- "Tweet sent."
-                else
-                    msg <- "Tweet send failed. Please try again."
-                // process tag
-                if hashtag <> "" then
-                // TODO
-                    ""
-                // process mention
-                if mention <> "" then
-                // TODO
-                    ""
             else 
-
+                msg <- "User is not logged in, please log in again."
+            resJsonStr <- parseRes status msg """[]"""
+            sender <! Res(resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -267,13 +281,136 @@ let ReTweetHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
-        printfn "worker acotr receive msg: %A" message
+        if debug then printfn $"[DEBUG]ReTweetHandler receive msg: {message}"
+        // let mutable userIdSet = Set.empty
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        let mutable isSuccess = true
+        match message with
+        | ReTweet(userId, props) -> 
+            let reTweetId = try props?tweetId.AsString() with |_ -> ""
+            let hashtag = try props?hashtag.AsArray() with |_ -> [||]
+            let mention = try props?mention.AsArray() with |_ -> [||]
+            // user must already logged in
+            if isUserLoggedIn userId then 
+            // tweet mush has content
+                if (reTweetId = "") then
+                    msg <- "Please specify which tweet you want to retweet."
+                    resJsonStr <- parseRes status msg """[]"""
+                    sender <! Res(resJsonStr)
+                    return! loop()
+                // get tweet
+                let content = dbQuery $"select content from Tweet where id = '{reTweetId}'"
+                // process tweet
+                let tweetId = getSHA1Str ""
+                let res = dbInsert "insert into Tweet(id, content, publish_user_id, timestamp) values ({tweetId}, {content}, {userId}, {DateTime.Now})"
+                if res <> 1 then 
+                    msg <- "Tweet send failed. Please try again."
+                    isSuccess <- false
+                // process tag
+                if hashtag.Length > 0 then
+                    [for tag in hashtag -> (
+                            let tagId = getSHA1Str (tag.AsString())
+                            let dbRes = dbInsert "insert into HashTag(id, tag_name, tweet_id) values ({tagId}, {hashtag}, {tweetId})"
+                            if dbRes <> 1 then
+                                msg <- "HashTag are not added properly."
+                                isSuccess <- false
+                    )] |> ignore                        
+                // process mention
+                if mention.Length > 0 then
+                    [for user in mention -> 
+                            let mentionId = getSHA1Str (user.AsString())
+                            let dbRes = dbInsert "insert into Mention(id, user_id, tweet_id) values ({mentionId}, {user}, {tweetId})"
+                            if dbRes <> 1 then 
+                                msg <- "Mention are not added properly."
+                                isSuccess <- false
+                    ] |> ignore
+                if isSuccess then 
+                    status <- "success"
+                    msg <- "Retweet success."
+            else 
+                msg <- "User is not logged in, please log in again."
+            resJsonStr <- parseRes status msg """[]"""
+            sender <! Res(resJsonStr)
+        | _ -> ()
+        return! loop()
+    }
+    loop()
+
+let FollowHandler (mailbox:Actor<_>) =
+    let rec loop () = actor {
+        let! message = mailbox.Receive()
+        let sender = mailbox.Sender()
+        if debug then printfn $"[DEBUG]FollowHandler receive msg: {message}"
         // let mutable userIdSet = Set.empty
         let mutable status = "error"
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
         match message with
-        | TweReTweet(userId, props) -> ()
+        | Follow(userId, props) -> 
+            let followUserId = try props?userId.AsString() with |_ -> ""
+            // user must already logged in
+            if isUserLoggedIn userId then 
+            // must has followUserId
+                if (followUserId = "") then
+                    msg <- "Please specify which user you want to follow."
+                    resJsonStr <- parseRes status msg """[]"""
+                    sender <! Res(resJsonStr)
+                    return! loop()
+                // process follow
+                let followId = getSHA1Str ""
+                let res = dbInsert "insert into UserRelation(id, user_id, follower_id) values ('{followId}', '{followUserId}', '{userId}')"
+                if res <> 1 then 
+                    msg <- $"Follow user {followUserId} failed. Please try again."
+                else
+                    status <- "success"
+                    msg <- "Retweet success."
+            else 
+                msg <- "User is not logged in, please log in again."
+            resJsonStr <- parseRes status msg """[]"""
+            sender <! Res(resJsonStr)
+        | _ -> ()
+        return! loop()
+    }
+    loop()
+
+let UnFollowHandler (mailbox:Actor<_>) =
+    let rec loop () = actor {
+        let! message = mailbox.Receive()
+        let sender = mailbox.Sender()
+        if debug then printfn $"[DEBUG]UnFollowHandler receive msg: {message}"
+        // let mutable userIdSet = Set.empty
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        match message with
+        | UnFollow(userId, props) -> 
+            let unfollowUserId = try props?userId.AsString() with |_ -> ""
+            // user must already logged in
+            if isUserLoggedIn userId then 
+            // must has unfollowUserId
+                if (unfollowUserId = "") then
+                    msg <- "Please specify which user you want to unfollow."
+                    resJsonStr <- parseRes status msg """[]"""
+                    sender <! Res(resJsonStr)
+                    return! loop()
+                // query user relation
+                let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{unfollowUserId}'"
+                if userRelationId = "error" then
+                     msg <- $"You are not following user {unfollowUserId}."
+                else
+                // process unfollow
+                    let res = dbInsert $"delete from UserRelation where id='{userRelationId}'"
+                    if res <> 1 then 
+                        msg <- $"Unfollow user {unfollowUserId} failed. Please try again."
+                    else
+                        status <- "success"
+                        msg <- "Retweet success."
+            else 
+                msg <- "User is not logged in, please log in again."
+            resJsonStr <- parseRes status msg """[]"""
+            sender <! Res(resJsonStr)
         | _ -> ()
         return! loop()
     }
