@@ -76,23 +76,25 @@ type API =
 
 let tester _ = 
     let api = "ReTweet" // "Login" "Register" "Tweet" "ReTweet"
-    let id = "Admin003"
-    let password = "Admin003"
+    let id = "Admin004"
+    let password = "Admin004"
     let prop = """{}"""
     let registerProp = sprintf """{"email": "%s", "nickName": "%s"}"""
-                            "test5@test.com"
-                            "Joy"
+                            "test6@test.com"
+                            "hannah"
     let loginProp = """{}"""
     let tweetProp1 = sprintf """{"content": "%s"}"""
                         "Nice weather!"
     let tweetProp2 = sprintf """{"content": "%s", "hashtag": ["test1", "test2"]}"""
                         "Another tweet!"
-    let tweetProp3 = sprintf """{"content": "%s", "hashtag": ["test5", "test6"], "mention": ["Admin001", "Admin002"]}"""
-                        "Nice weather balabala!"
+    let tweetProp3 = sprintf """{"content": "%s", "hashtag": ["Suave", "test7"], "mention": ["Admin001", "Admin002"]}"""
+                        "Suave is a simple web development F#"
     let retweetProp = sprintf """{"tweetId": "%s"}"""
                         "0F135E30DCF16D471B8219B55431B61F9321F884"
+    let retweetProp1 = sprintf """{"tweetId": "%s"}, "hashtag": ["Suave", "test8"], "mention": ["Admin003", "Admin004"]"""
+                        "0F135E30DCF16D471B8219B55431B61F9321F884"
     let json = sprintf """{"api": "%s","auth":{"id":"%s","password":"%s"},"props":%s}"""
-                    api id password retweetProp
+                    api id password retweetProp1
     // let json = sprintf """{"status": "%s","msg":"%s","content":%s}""" "200" "success" """[{"Jan": "Alexander"}]"""
     // printfn "%s" json
     // printfn "%A" (JsonValue.Parse(json))?auth
