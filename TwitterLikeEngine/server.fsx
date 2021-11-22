@@ -19,6 +19,7 @@ open Akka.TestKit
 open Akka.Remote
 open Akka.Serialization
 open System.Diagnostics
+open System.IO
 
 let configuration = 
     ConfigurationFactory.ParseString(
@@ -123,19 +124,48 @@ let dbInsert queryStr =
 let parseRes status msg content = 
     sprintf """{"status": "%s","msg":"%s","content":%s}""" status msg content
 
-let getSubscribedTweet userId =
-    let query = $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp desc"
-    let reader = dbQueryMany query
-    let mutable content = []
+/// Generate a json string containing all tweets by SQLiteDataReader
+let getTweetJsonStr (reader : SQLiteDataReader) = 
+    let mutable content = "["
     if  reader.HasRows then
         while reader.Read() do
-            let tweetInfo = sprintf """{"text": "%s","tweetId":"%s","userId":"%s", "timestamp":"%s"}"""
-                                (reader.["content"].ToString())
-                                (reader.["id"].ToString())
-                                (reader.["id"].ToString())
-                                (System.Convert.ToDateTime(reader.["timestamp"]).ToString("s"))
-            content <- content @ [tweetInfo]
-    content
+            let tweetInfo = 
+                sprintf """{"text": "%s", "tweetId":"%s", "userId":"%s", "timestamp":"%s"}"""
+                    (reader.["content"].ToString())
+                    (reader.["id"].ToString())
+                    (reader.["id"].ToString())
+                    (System.Convert.ToDateTime(reader.["timestamp"]).ToString("s"))
+            content <- content + tweetInfo + ", "
+        content.Substring(0, content.Length - 2) + "]"
+    else 
+        content + "]"
+
+/// Return a json string containing all tweets subscribed by a certain user
+let getSubscribedTweets userId =
+    $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp desc"
+    |> dbQueryMany
+    |> getTweetJsonStr
+
+/// Return the last 20 tweets
+let getLast20Tweets _ =
+    "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp desc limit 20"
+    |> dbQueryMany
+    |> getTweetJsonStr
+
+let getTweetsRelatedToTag tagName = 
+    $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp desc"
+    |> dbQueryMany
+    |> getTweetJsonStr
+
+let getTweetsMentionById userId = 
+    $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+    |> dbQueryMany
+    |> getTweetJsonStr
+
+let getTweetsMentionByName userName = 
+    $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+    |> dbQueryMany
+    |> getTweetJsonStr
 
 let isUserExist userId =
     connection.Open()
@@ -452,23 +482,37 @@ let QueryHandler (mailbox:Actor<_>) =
                     return! loop()
                 match operation with
                 | "subscribe " -> 
-
+                    status <- "success"
+                    msg <- $"user {userId}'s subscribed tweets:"
+                    resJsonStr <- parseRes status msg (getSubscribedTweets userId)
                 | "all" ->
+                    status <- "success"
+                    msg <- $"The latest 20 tweets:"
+                    resJsonStr <- parseRes status msg (getLast20Tweets userId)
                 | "tag" ->
+                    let tagId = try props?tagId.AsString() with |_ -> ""
+                    if (tagId = "") then
+                        msg <- "Please specify which tagId you want to query."
+                        resJsonStr <- parseRes status msg """[]"""
+                        sender <! Res(resJsonStr)
+                        return! loop()
+                    status <- "success"
+                    msg <- $"Tweets related to tag {tagId}:"
+                    resJsonStr <- parseRes status msg (getTweetsRelatedToTag tagId)
                 | "mention" -> 
+                    let mention = try props?mention.AsString() with |_ -> ""
+                    if (mention = "") then
+                        msg <- "Please specify which user you want to query."
+                        resJsonStr <- parseRes status msg """[]"""
+                        sender <! Res(resJsonStr)
+                        return! loop()
+                    let mutable tweets = getTweetsMentionById mention
+                    if tweets = "[]" then tweets <- getTweetsMentionByName mention
+                    status <- "success"
+                    msg <- $"Tweets related to user {mention}:"
+                    resJsonStr <- parseRes status msg tweets
                 | _ -> failwith "exception"
-                // query user relation
-                let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{unfollowUserId}'"
-                if userRelationId = "error" then
-                     msg <- $"You are not following user {unfollowUserId}."
-                else
-                // process unfollow
-                    let res = dbInsert $"delete from UserRelation where id='{userRelationId}'"
-                    if res <> 1 then 
-                        msg <- $"Unfollow user {unfollowUserId} failed. Please try again."
-                    else
-                        status <- "success"
-                        msg <- "Retweet success."
+                sender <! Res(resJsonStr)
             else 
                 msg <- "User is not logged in, please log in again."
             resJsonStr <- parseRes status msg """[]"""
@@ -534,7 +578,30 @@ let APIHandler (mailbox:Actor<_>) =
     }
     loop()
 
+let initDb _ = 
+    let databaseFilename = "Twitter.sqlite"
+    let dbPath = @".\" + databaseFilename;
+    // if DB file is not exist, initialize DB
+    if not(File.Exists(dbPath)) then
+        printfn $"[Info]DB doesn't exist {dbPath}. Initialize database..." 
+        let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename
+        // 0. Create Database
+        SQLiteConnection.CreateFile(databaseFilename)
+        // 1. Init Database
+        // 1.a. open connection
+        let connection = new SQLiteConnection(connectionString)
+        connection.Open()
+        // 1.b. Create tables
+        let structureSql =
+            "create table Tweet (id TEXT, content TEXT, publish_user_id TEXT, timestamp TEXT);" +
+            "create table User (id TEXT, email TEXT, nick_name TEXT, password TEXT);" +
+            "create table UserRelation (id TEXT, user_id TEXT, follower_id TEXT);" +
+            "create table HashTag (id TEXT, tag_name TEXT, tweet_id TEXT);" +
+            "create table Mention (id TEXT, user_id TEXT, tweet_id TEXT)"
+        let structureCommand = new SQLiteCommand(structureSql, connection)
+        structureCommand.ExecuteNonQuery() |> ignore
 
+initDb()
 spawn server "APIHandler" APIHandler
 System.Console.Title <- "Server"
 Console.ForegroundColor <- ConsoleColor.Green
