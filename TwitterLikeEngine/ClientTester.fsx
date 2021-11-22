@@ -52,33 +52,64 @@ type API =
 //     }
 // }
 
-let coordinator (mailbox:Actor<_>) =
-    let actcount = System.Environment.ProcessorCount |> int64
-    printfn $"[INFO]: ProcessorCount: {actcount}"
-    let api = "register"
-    // let json = sprintf """{"api": "%s","auth":{"id":"t10000","password":1985},"props":{"nickName":"test001","email":"test001@test.com"}}""" api
-    let json = sprintf """{"status": "%s","msg":"%s","content":%s}""" "200" "success" """[{"Jan": "Alexander"}]"""
+// let coordinator (mailbox:Actor<_>) =
+//     let actcount = System.Environment.ProcessorCount |> int64
+//     printfn $"[INFO]: ProcessorCount: {actcount}"
+
+    // let rec loop () = actor {
+    //     let! (message) = mailbox.Receive()
+    //     printfn "worker acotr receive msg: %A" message
+    //     let sender = mailbox.Sender()
+    //     let server = remoteSystem.ActorSelection ("akka.tcp://TwitterClone@localhost:9001/user/APIHandler")
+    //     server <! Res(json)
+    //     //{ "id": "t10000", "password": 1985, "nickName": "test001", "email": "test001@test.com" }
+    //     // match message with
+    //     // | ServerInfo (info) -> 
+    //     //     sender <! Res(actcount)
+    //     // | _ -> ()
+    //     return! loop()
+    // }
+    // loop()
+
+
+// spawn remoteSystem "coordinator" coordinator
+
+let tester _ = 
+    let api = "ReTweet" // "Login" "Register" "Tweet" "ReTweet"
+    let id = "Admin003"
+    let password = "Admin003"
+    let prop = """{}"""
+    let registerProp = sprintf """{"email": "%s", "nickName": "%s"}"""
+                            "test5@test.com"
+                            "Joy"
+    let loginProp = """{}"""
+    let tweetProp1 = sprintf """{"content": "%s"}"""
+                        "Nice weather!"
+    let tweetProp2 = sprintf """{"content": "%s", "hashtag": ["test1", "test2"]}"""
+                        "Another tweet!"
+    let tweetProp3 = sprintf """{"content": "%s", "hashtag": ["test5", "test6"], "mention": ["Admin001", "Admin002"]}"""
+                        "Nice weather balabala!"
+    let retweetProp = sprintf """{"tweetId": "%s"}"""
+                        "0F135E30DCF16D471B8219B55431B61F9321F884"
+    let json = sprintf """{"api": "%s","auth":{"id":"%s","password":"%s"},"props":%s}"""
+                    api id password retweetProp
+    // let json = sprintf """{"status": "%s","msg":"%s","content":%s}""" "200" "success" """[{"Jan": "Alexander"}]"""
     // printfn "%s" json
     // printfn "%A" (JsonValue.Parse(json))?auth
     let server = remoteSystem.ActorSelection ("akka.tcp://TwitterClone@10.136.105.35:9001/user/APIHandler")
-    server <! Req(json)
-    let rec loop () = actor {
-        let! (message) = mailbox.Receive()
-        printfn "worker acotr receive msg: %A" message
-        let sender = mailbox.Sender()
-        let server = remoteSystem.ActorSelection ("akka.tcp://TwitterClone@localhost:9001/user/APIHandler")
-        server <! Res(json)
-        //{ "id": "t10000", "password": 1985, "nickName": "test001", "email": "test001@test.com" }
-        // match message with
-        // | ServerInfo (info) -> 
-        //     sender <! Res(actcount)
-        // | _ -> ()
-        return! loop()
-    }
-    loop()
+    let response = Async.RunSynchronously(server <? Req(json))
 
+    match response with
+    | Res(info) ->
+        printfn "------------Request-------------"
+        printfn "%A" (JsonValue.Parse(json))
+        printfn "------------Response------------"
+        printfn "%A"  (JsonValue.Parse(info))
+        printfn "--------------------------------"
+    | _ -> 
+        printfn "[ERROR] response: \n{response}"
 
-spawn remoteSystem "coordinator" coordinator
+tester()
 System.Console.Title <- "Remote : " + System.Diagnostics.Process.GetCurrentProcess().Id.ToString()
 Console.ForegroundColor <- ConsoleColor.Green
 printfn "Remote Actor %s listening..." remoteSystem.Name

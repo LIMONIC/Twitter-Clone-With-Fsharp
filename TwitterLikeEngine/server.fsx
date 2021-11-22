@@ -44,7 +44,7 @@ let configuration =
         )
 
 let server = System.create "TwitterClone" (configuration)
-let url = "akka.tcp://TwitterClone@localhost:9001/user/"
+let url = "akka.tcp://TwitterClone@10.136.105.35:9001/user/"
 
 // database
 let databaseFilename = "Twitter.sqlite"
@@ -108,9 +108,14 @@ let mutable authedUserSet = Set.empty
 let dbQuery queryStr =
     let selectCommand = new SQLiteCommand(queryStr, connection)
     try 
+        printfn $"dbQuery {selectCommand.ExecuteScalar().ToString()}"
         selectCommand.ExecuteScalar().ToString()
-    with 
-        | _ -> "error"
+    with | _ -> "error"
+    // if selectCommand.ExecuteReader().HasRows then
+    //     selectCommand.ExecuteScalar().ToString()
+    // else
+    //     "error"
+
 
 let dbQueryMany queryStr =
     let selectCommand = new SQLiteCommand(queryStr, connection)
@@ -168,9 +173,10 @@ let getTweetsMentionByName userName =
     |> getTweetJsonStr
 
 let isUserExist userId =
-    connection.Open()
-    let isUserExist = dbQuery $"select id from User where id = '{userId}'"
-    not (isUserExist = "error")
+    // connection.Open()
+    let res = dbQuery $"select id from User where id = '{userId}'"
+    if debug then printfn $"-[DEBUG][isUserExist] res = {res}"
+    not (res = "error")
 
 let isUserLoggedIn userId = 
     authedUserSet.Contains(userId)
@@ -202,22 +208,22 @@ let RegisterHandler (mailbox:Actor<_>) =
             if (nickName = "" || email = "") then 
                 msg <- "Insufficient user information."
                 resJsonStr <- parseRes status msg """[]"""
-                sender <! Res(resJsonStr)
+                sender <! (resJsonStr)
                 return! loop()
             // find if user exist
             if isUserExist userId then 
                 msg <- "UserId has already been used. Please choose a new one."
             else
-                connection.Open()
-                let res = dbInsert $"insert into User(id, email, nick_name, password) values ({userId}, {email}, {nickName}, {password})"
+                // connection.Open()
+                let res = dbInsert $"insert into User(id, email, nick_name, password) values ('{userId}', '{email}', '{nickName}', '{password}')"
                 if res = 1 then 
                     status <- "success"
-                    msg <- "Registration Success."
+                    msg <- $"Registration Success. Your user id is {userId}."
                 else
                     msg <- "Registration Failed. Please try again."
-                connection.Close()
+                // connection.Close()
             resJsonStr <- parseRes status msg """[]"""
-            sender <! Res(resJsonStr)
+            sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -240,23 +246,23 @@ let LoginHandler (mailbox:Actor<_>) =
                 status <- "success"
                 msg <- $"User {userId} has already logged in."
                 resJsonStr <- parseRes status msg """[]"""
-                sender <! Res(resJsonStr)
+                sender <! (resJsonStr)
                 return! loop()
             // find if user exist
-            if isUserExist userId then 
+            if not (isUserExist userId) then 
                 msg <- "User not existed. Please check the user information"
             else
-                connection.Open()
+                // connection.Open()
                 pwRef <- dbQuery $"select password from User where id = '{userId}'"
                 if password = pwRef then 
                     status <- "success"
-                    msg <- "Login Success."
+                    msg <- $"Login Success. You have logged in as {userId}"
                     authedUserSet <- authedUserSet.Add(userId)
                 else
                     msg <- "Login Failed. Please try again."
-                connection.Close()
+                // connection.Close()
             resJsonStr <- parseRes status msg """[]"""
-            sender <! Res(resJsonStr)
+            sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -283,11 +289,11 @@ let TweetHandler (mailbox:Actor<_>) =
                 if (content = "") then
                     msg <- "Empty tweet. Please add content."
                     resJsonStr <- parseRes status msg """[]"""
-                    sender <! Res(resJsonStr)
+                    sender <! (resJsonStr)
                     return! loop()
                 // process tweet
                 let tweetId = getSHA1Str ""
-                let res = dbInsert "insert into Tweet(id, content, publish_user_id, timestamp) values ({tweetId}, {content}, {userId}, {DateTime.Now})"
+                let res = dbInsert $"insert into Tweet(id, content, publish_user_id, timestamp) values ('{tweetId}', '{content}', '{userId}', '{DateTime.Now}')"
                 if res <> 1 then 
                     msg <- "Tweet send failed. Please try again."
                     isSuccess <- false
@@ -295,16 +301,16 @@ let TweetHandler (mailbox:Actor<_>) =
                 if hashtag.Length > 0 then
                     [for tag in hashtag -> (
                             let tagId = getSHA1Str (tag.AsString())
-                            let dbRes = dbInsert "insert into HashTag(id, tag_name, tweet_id) values ({tagId}, {hashtag}, {tweetId})"
+                            let dbRes = dbInsert $"insert into HashTag(id, tag_name, tweet_id) values ('{tagId}', '{tag.AsString()}', '{tweetId}')"
                             if dbRes <> 1 then
                                 msg <- "HashTag are not added properly."
                                 isSuccess <- false
-                    )] |> ignore                        
+                    )] |> ignore
                 // process mention
                 if mention.Length > 0 then
                     [for user in mention -> 
                             let mentionId = getSHA1Str (user.AsString())
-                            let dbRes = dbInsert "insert into Mention(id, user_id, tweet_id) values ({mentionId}, {user}, {tweetId})"
+                            let dbRes = dbInsert $"insert into Mention(id, user_id, tweet_id) values ('{mentionId}', '{user.AsString()}', '{tweetId}')"
                             if dbRes <> 1 then 
                                 msg <- "Mention are not added properly."
                                 isSuccess <- false
@@ -315,7 +321,7 @@ let TweetHandler (mailbox:Actor<_>) =
             else 
                 msg <- "User is not logged in, please log in again."
             resJsonStr <- parseRes status msg """[]"""
-            sender <! Res(resJsonStr)
+            sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -342,21 +348,21 @@ let ReTweetHandler (mailbox:Actor<_>) =
                 if (reTweetId = "") then
                     msg <- "Please specify which tweet you want to retweet."
                     resJsonStr <- parseRes status msg """[]"""
-                    sender <! Res(resJsonStr)
+                    sender <! (resJsonStr)
                     return! loop()
                 // get tweet
                 let content = dbQuery $"select content from Tweet where id = '{reTweetId}'"
                 // process tweet
                 let tweetId = getSHA1Str ""
-                let res = dbInsert "insert into Tweet(id, content, publish_user_id, timestamp) values ({tweetId}, {content}, {userId}, {DateTime.Now})"
+                let res = dbInsert $"insert into Tweet(id, content, publish_user_id, timestamp) values ('{tweetId}', '{content}', '{userId}', '{DateTime.Now}')"
                 if res <> 1 then 
-                    msg <- "Tweet send failed. Please try again."
+                    msg <- "Retweet failed. Please try again."
                     isSuccess <- false
                 // process tag
                 if hashtag.Length > 0 then
                     [for tag in hashtag -> (
                             let tagId = getSHA1Str (tag.AsString())
-                            let dbRes = dbInsert "insert into HashTag(id, tag_name, tweet_id) values ({tagId}, {hashtag}, {tweetId})"
+                            let dbRes = dbInsert $"insert into HashTag(id, tag_name, tweet_id) values ('{tagId}', '{tag.AsString()}', '{tweetId}')"
                             if dbRes <> 1 then
                                 msg <- "HashTag are not added properly."
                                 isSuccess <- false
@@ -365,7 +371,7 @@ let ReTweetHandler (mailbox:Actor<_>) =
                 if mention.Length > 0 then
                     [for user in mention -> 
                             let mentionId = getSHA1Str (user.AsString())
-                            let dbRes = dbInsert "insert into Mention(id, user_id, tweet_id) values ({mentionId}, {user}, {tweetId})"
+                            let dbRes = dbInsert $"insert into Mention(id, user_id, tweet_id) values ('{mentionId}', '{user.AsString()}', '{tweetId}')"
                             if dbRes <> 1 then 
                                 msg <- "Mention are not added properly."
                                 isSuccess <- false
@@ -376,7 +382,7 @@ let ReTweetHandler (mailbox:Actor<_>) =
             else 
                 msg <- "User is not logged in, please log in again."
             resJsonStr <- parseRes status msg """[]"""
-            sender <! Res(resJsonStr)
+            sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -400,7 +406,7 @@ let FollowHandler (mailbox:Actor<_>) =
                 if (followUserId = "") then
                     msg <- "Please specify which user you want to follow."
                     resJsonStr <- parseRes status msg """[]"""
-                    sender <! Res(resJsonStr)
+                    sender <! (resJsonStr)
                     return! loop()
                 // process follow
                 let followId = getSHA1Str ""
@@ -413,7 +419,7 @@ let FollowHandler (mailbox:Actor<_>) =
             else 
                 msg <- "User is not logged in, please log in again."
             resJsonStr <- parseRes status msg """[]"""
-            sender <! Res(resJsonStr)
+            sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -437,7 +443,7 @@ let UnFollowHandler (mailbox:Actor<_>) =
                 if (unfollowUserId = "") then
                     msg <- "Please specify which user you want to unfollow."
                     resJsonStr <- parseRes status msg """[]"""
-                    sender <! Res(resJsonStr)
+                    sender <! (resJsonStr)
                     return! loop()
                 // query user relation
                 let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{unfollowUserId}'"
@@ -454,7 +460,7 @@ let UnFollowHandler (mailbox:Actor<_>) =
             else 
                 msg <- "User is not logged in, please log in again."
             resJsonStr <- parseRes status msg """[]"""
-            sender <! Res(resJsonStr)
+            sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -478,7 +484,7 @@ let QueryHandler (mailbox:Actor<_>) =
                 if (operation = "") then
                     msg <- "Please specify which user you want to unfollow."
                     resJsonStr <- parseRes status msg """[]"""
-                    sender <! Res(resJsonStr)
+                    sender <! (resJsonStr)
                     return! loop()
                 match operation with
                 | "subscribe " -> 
@@ -494,7 +500,7 @@ let QueryHandler (mailbox:Actor<_>) =
                     if (tagId = "") then
                         msg <- "Please specify which tagId you want to query."
                         resJsonStr <- parseRes status msg """[]"""
-                        sender <! Res(resJsonStr)
+                        sender <! (resJsonStr)
                         return! loop()
                     status <- "success"
                     msg <- $"Tweets related to tag {tagId}:"
@@ -504,7 +510,7 @@ let QueryHandler (mailbox:Actor<_>) =
                     if (mention = "") then
                         msg <- "Please specify which user you want to query."
                         resJsonStr <- parseRes status msg """[]"""
-                        sender <! Res(resJsonStr)
+                        sender <! (resJsonStr)
                         return! loop()
                     let mutable tweets = getTweetsMentionById mention
                     if tweets = "[]" then tweets <- getTweetsMentionByName mention
@@ -512,11 +518,11 @@ let QueryHandler (mailbox:Actor<_>) =
                     msg <- $"Tweets related to user {mention}:"
                     resJsonStr <- parseRes status msg tweets
                 | _ -> failwith "exception"
-                sender <! Res(resJsonStr)
+                sender <! (resJsonStr)
             else 
                 msg <- "User is not logged in, please log in again."
             resJsonStr <- parseRes status msg """[]"""
-            sender <! Res(resJsonStr)
+            sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
@@ -530,14 +536,15 @@ let APIHandler (mailbox:Actor<_>) =
 
     let mutable handler = server.ActorSelection(url + "")
     let mutable msg = Default("")
-    // todo: do auth
+    // // todo: do auth
     
-    let auth id pass = ()
-
+    // let auth id pass = ()
+    
     let rec loop () = actor {
         let! (message) = mailbox.Receive()
+        printfn $"##{message}"
         let sender = mailbox.Sender()
-        printfn "worker acotr receive msg: %A" message
+        if debug then printfn $"[DEBUG]APIHandler receive msg: {message}"
 
         match message with
         | Req(info) -> 
@@ -547,7 +554,6 @@ let APIHandler (mailbox:Actor<_>) =
             let password = infoJson?auth?password.AsString()
             let props = infoJson?props
             if (operation = "" || userId = "" || password = "") then return! loop()
-            printfn "operation: %A" operation
             match operation with
             | "Register" ->
                 handler <- server.ActorSelection(url + "RegisterHandler")
@@ -570,10 +576,13 @@ let APIHandler (mailbox:Actor<_>) =
             | "Query" ->
                 handler <- server.ActorSelection(url + "QueryHandler")
                 msg <- Query(userId, props)
-            | _ -> return! loop()
+            | _ -> 
+                printfn $"[ERROR]API not correct! API: {operation}"
+                return! loop()
+            let res = Async.RunSynchronously(handler <? msg, 100)
+            sender <! Res(res)
         | _ -> ()
-        let res = Async.RunSynchronously(handler <? msg, 100)
-        sender <! res
+        
         return! loop()
     }
     loop()
@@ -603,6 +612,15 @@ let initDb _ =
 
 initDb()
 spawn server "APIHandler" APIHandler
+spawn server "LoginHandler" LoginHandler
+spawn server "RegisterHandler" RegisterHandler
+spawn server "TweetHandler" TweetHandler
+spawn server "ReTweetHandler" ReTweetHandler
+spawn server "FollowHandler" FollowHandler
+spawn server "UnFollowHandler" UnFollowHandler
+spawn server "QueryHandler" QueryHandler
+connection.Open()
+
 System.Console.Title <- "Server"
 Console.ForegroundColor <- ConsoleColor.Green
 printfn "Remote Actor %s listening..." server.Name
