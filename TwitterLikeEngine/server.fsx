@@ -37,14 +37,14 @@ let configuration =
                 helios.tcp {
                     transport-protocol = tcp
                     port = 9001
-                    hostname = ""192.168.1.26""
+                    hostname = ""192.168.1.41""
                 }
             }
         }"
         )
 
 let server = System.create "TwitterClone" (configuration)
-let url = "akka.tcp://TwitterClone@192.168.1.26:9001/user/"
+let url = "akka.tcp://TwitterClone@192.168.1.41:9001/user/"
 
 // database
 let databaseFilename = "Twitter.sqlite"
@@ -66,38 +66,7 @@ type Msg =
 
 let debug = true 
 let mutable authedUserSet = Set.empty
-// Res:
-// {
-//     "status":"",
-//     "msg": "",
-//     "content":[
-//         {
-//             "text":"",
-//             "tweetId":"",
-//             "userId":"",
-//             "timestamp":""
-//         },
-//         {
-//             "text":"",
-//             "tweetId":"",
-//             "userId":"",
-//             "timestamp":""
-//         }
-//     ]
-// }
 
-// Req:
-// {
-//     "api":"",
-//     "auth":{
-//         "id":"t10000",
-//         "password":1985
-//     },
-//     "props":{
-//         "nickName":"test001",
-//         "email":"test001@test.com"
-//     }
-// }
 type Utils() =
 // Stringified JSON handling
     member this.parseRes status msg content = 
@@ -131,6 +100,30 @@ let Utils = Utils()
 
 
 type DB() =
+// DB initiate
+    member this.initDb _ = 
+        let databaseFilename = "Twitter.sqlite"
+        let dbPath = @".\" + databaseFilename;
+        // if DB file is not exist, initialize DB
+        if not(File.Exists(dbPath)) then
+            printfn $"[Info]DB doesn't exist {dbPath}. Initialize database..." 
+            let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename
+            // 0. Create Database
+            SQLiteConnection.CreateFile(databaseFilename)
+            // 1. Init Database
+            // 1.a. open connection
+            let connection = new SQLiteConnection(connectionString)
+            connection.Open()
+            // 1.b. Create tables
+            let structureSql =
+                "create table Tweet (id TEXT, content TEXT, publish_user_id TEXT, timestamp TEXT);" +
+                "create table User (id TEXT, email TEXT, nick_name TEXT, password TEXT);" +
+                "create table UserRelation (id TEXT, user_id TEXT, follower_id TEXT);" +
+                "create table HashTag (id TEXT, tag_name TEXT, tweet_id TEXT);" +
+                "create table Mention (id TEXT, user_id TEXT, tweet_id TEXT)"
+            let structureCommand = new SQLiteCommand(structureSql, connection)
+            structureCommand.ExecuteNonQuery() |> ignore
+
 // DB operations
     member this.dbQuery queryStr = 
         let selectCommand = new SQLiteCommand(queryStr, connection)
@@ -283,6 +276,98 @@ type HandlerImpl() =
                 this.processMention (tweetId, mention, &msg, &isSuccess)
         isSuccess
 
+// Follow
+    member this.isValidForFollowOrUnfollow (userId, targetUserId, (msg: byref<_>)) = 
+        let mutable flag = false
+        // user must already logged in
+        if not (this.isUserLoggedIn userId) then
+            msg <- "User is not logged in, please log in again."
+        // target must not be null
+        else if (targetUserId = "") then
+            msg <- "Please specify which user you want to follow or unfollow."
+        // target user must exist
+        else if not (DB.isUserExist targetUserId) then
+            msg <- $"User {targetUserId} not exist. Please check the user information"
+        else
+            flag <- true
+        flag
+    
+    member this.followImpl (userId, userIdTofollow, (msg: byref<_>)) =
+        let mutable flag = false
+        if this.isValidForFollowOrUnfollow (userId, userIdTofollow, &msg) then
+            if (DB.isFollowed userId userIdTofollow) then 
+                msg <- $"User {userId} already followed user {userIdTofollow}."
+            else
+                // process follow
+                let followId = Utils.getSHA1Str ""
+                // check if already follewed
+                let res = DB.dbInsert $"insert into UserRelation(id, user_id, follower_id) values ('{followId}', '{userIdTofollow}', '{userId}')"
+                if res <> 1 then 
+                    msg <- $"Follow user {userIdTofollow} failed. Please try again."
+                else
+                    msg <- $"{userId} successfully followed {userIdTofollow}."
+                    flag <- true
+        flag
+
+    member this.unfollowImpl (userId, userIdToUnfollow, (msg: byref<_>)) =
+        let mutable flag = false
+        if this.isValidForFollowOrUnfollow (userId, userIdToUnfollow, &msg) then
+            if not (DB.isFollowed userId userIdToUnfollow) then 
+                msg <- $"User {userId} is not following user {userIdToUnfollow}."
+                // query user relation
+                let userRelationId = DB.dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{userIdToUnfollow}'"
+                if userRelationId = "error" then
+                     msg <- $"You are not following user {userIdToUnfollow}."
+                else
+                // process unfollow
+                    let res = DB.dbInsert $"delete from UserRelation where id='{userRelationId}'"
+                    if res <> 1 then 
+                        msg <- $"Unfollow user {userIdToUnfollow} failed. Please try again."
+                    else
+                        msg <- $"{userId} successfully unfollowed {userIdToUnfollow}."
+                        flag <- true
+        flag
+
+    member this.queryImpl (userId, operation, tagId, mention, (msg: byref<_>), (status: byref<_>), (resJsonStr: byref<_>)) =
+        // user must already logged in
+        if not (this.isUserLoggedIn userId) then
+            msg <- "User is not logged in, please log in again."
+            resJsonStr <- Utils.parseRes status msg """[]"""
+        else if (operation = "") then
+            msg <- "Please specify query operation."
+            resJsonStr <- Utils.parseRes status msg """[]"""
+        else
+            match operation with
+            | "subscribe" -> 
+                status <- "success"
+                msg <- $"user {userId}'s subscribed tweets:"
+                resJsonStr <- Utils.parseRes status msg (DB.getSubscribedTweets userId)
+            | "all" ->
+                status <- "success"
+                msg <- "The latest 20 tweets:"
+                resJsonStr <- Utils.parseRes status msg (DB.getLast20Tweets userId)
+            | "tag" ->
+                if (tagId = "") then
+                    msg <- "Please specify which tagId you want to query."
+                    resJsonStr <- Utils.parseRes status msg """[]"""
+                else
+                    status <- "success"
+                    msg <- $"Tweets related to tag {tagId}:"
+                    resJsonStr <- Utils.parseRes status msg (DB.getTweetsRelatedToTag tagId)
+            | "mention" -> 
+                if (mention = "") then
+                    msg <- "Please specify which user you want to query."
+                    resJsonStr <- Utils.parseRes status msg """[]"""
+                else
+                    let mutable tweets = DB.getTweetsMentionById mention
+                    if tweets = "[]" then tweets <- DB.getTweetsMentionByName mention
+                    status <- "success"
+                    msg <- $"Tweets related to user {mention}:"
+                    resJsonStr <- Utils.parseRes status msg tweets
+            | _ -> 
+                printfn $"[ERROR]Query operation not correct! operation: {operation}"
+                msg <- $"Query operation not correct! operation: {operation}"
+                resJsonStr <- Utils.parseRes status msg """[]"""
 let Hi = HandlerImpl()
 
 let RegisterHandler (mailbox:Actor<_>) =
@@ -307,7 +392,9 @@ let RegisterHandler (mailbox:Actor<_>) =
     }
     loop()
 
+
 let LoginHandler (mailbox:Actor<_>) =
+    printfn "LoginHandler!!"
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
@@ -326,7 +413,6 @@ let LoginHandler (mailbox:Actor<_>) =
         return! loop()
     }
     loop()
-
 
 let TweetHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
@@ -379,23 +465,6 @@ let ReTweetHandler (mailbox:Actor<_>) =
     }
     loop()
 
-
-
-let isValidForFollowOrUnfollow userId targetUserId (msg: byref<_>) = 
-    let mutable flag = false
-    // user must already logged in
-    if not (Hi.isUserLoggedIn userId) then
-        msg <- "User is not logged in, please log in again."
-    // target must not be null
-    else if (targetUserId = "") then
-        msg <- "Please specify which user you want to follow or unfollow."
-    // target user must exist
-    else if not (DB.isUserExist targetUserId) then
-        msg <- $"User {targetUserId} not exist. Please check the user information"
-    else
-        flag <- true
-    flag
-
 let FollowHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
         let! message = mailbox.Receive()
@@ -408,21 +477,8 @@ let FollowHandler (mailbox:Actor<_>) =
         match message with
         | Follow(userId, props) -> 
             let userIdTofollow = try props?userId.AsString() with |_ -> ""
-            if (isValidForFollowOrUnfollow userId userIdTofollow &msg) then 
-                // check if already follewed
-                if (DB.isFollowed userId userIdTofollow) then 
-                    msg <- $"User {userId} already followed user {userIdTofollow}."
-                    resJsonStr <- Utils.parseRes status msg """[]"""
-                    sender <! (resJsonStr)
-                    return! loop()
-                // process follow
-                let followId = Utils.getSHA1Str ""
-                let res = DB.dbInsert $"insert into UserRelation(id, user_id, follower_id) values ('{followId}', '{userIdTofollow}', '{userId}')"
-                if res <> 1 then 
-                    msg <- $"Follow user {userIdTofollow} failed. Please try again."
-                else
-                    status <- "success"
-                    msg <- $"{userId} successfully followed {userIdTofollow}."
+            if Hi.followImpl (userId, userIdTofollow, &msg) then 
+                status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
@@ -442,25 +498,8 @@ let UnFollowHandler (mailbox:Actor<_>) =
         match message with
         | UnFollow(userId, props) -> 
             let userIdToUnfollow = try props?userId.AsString() with |_ -> ""
-            if (isValidForFollowOrUnfollow userId userIdToUnfollow &msg) then 
-                // check if already follewed
-                if not (DB.isFollowed userId userIdToUnfollow) then 
-                    msg <- $"User {userId} is not following user {userIdToUnfollow}."
-                    resJsonStr <- Utils.parseRes status msg """[]"""
-                    sender <! (resJsonStr)
-                    return! loop()
-                // query user relation
-                let userRelationId = DB.dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{userIdToUnfollow}'"
-                if userRelationId = "error" then
-                     msg <- $"You are not following user {userIdToUnfollow}."
-                else
-                // process unfollow
-                    let res = DB.dbInsert $"delete from UserRelation where id='{userRelationId}'"
-                    if res <> 1 then 
-                        msg <- $"Unfollow user {userIdToUnfollow} failed. Please try again."
-                    else
-                        status <- "success"
-                        msg <- $"{userId} successfully unfollowed {userIdToUnfollow}."
+            if Hi.unfollowImpl (userId, userIdToUnfollow, &msg) then
+                status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
@@ -480,59 +519,14 @@ let QueryHandler (mailbox:Actor<_>) =
         match message with
         | Query(userId, props) -> 
             let operation = try props?operation.AsString() with |_ -> ""
-            // user must already logged in
-            if Hi.isUserLoggedIn userId then 
-            // must has operation
-                if (operation = "") then
-                    msg <- "Please specify query operation."
-                    resJsonStr <- Utils.parseRes status msg """[]"""
-                    sender <! (resJsonStr)
-                    return! loop()
-                match operation with
-                | "subscribe" -> 
-                    status <- "success"
-                    msg <- $"user {userId}'s subscribed tweets:"
-                    resJsonStr <- Utils.parseRes status msg (DB.getSubscribedTweets userId)
-                | "all" ->
-                    status <- "success"
-                    msg <- "The latest 20 tweets:"
-                    resJsonStr <- Utils.parseRes status msg (DB.getLast20Tweets userId)
-                | "tag" ->
-                    let tagId = try props?tagId.AsString() with |_ -> ""
-                    if (tagId = "") then
-                        msg <- "Please specify which tagId you want to query."
-                        resJsonStr <- Utils.parseRes status msg """[]"""
-                        sender <! (resJsonStr)
-                        return! loop()
-                    status <- "success"
-                    msg <- $"Tweets related to tag {tagId}:"
-                    resJsonStr <- Utils.parseRes status msg (DB.getTweetsRelatedToTag tagId)
-                | "mention" -> 
-                    let mention = try props?mention.AsString() with |_ -> ""
-                    if (mention = "") then
-                        msg <- "Please specify which user you want to query."
-                        resJsonStr <- Utils.parseRes status msg """[]"""
-                        sender <! (resJsonStr)
-                        return! loop()
-                    let mutable tweets = DB.getTweetsMentionById mention
-                    if tweets = "[]" then tweets <- DB.getTweetsMentionByName mention
-                    status <- "success"
-                    msg <- $"Tweets related to user {mention}:"
-                    resJsonStr <- Utils.parseRes status msg tweets
-                | _ -> 
-                    printfn $"[ERROR]Query operation not correct! operation: {operation}"
-                    msg <- $"Query operation not correct! operation: {operation}"
-                    resJsonStr <- Utils.parseRes status msg """[]"""
-                sender <! (resJsonStr)
-            else 
-                msg <- "User is not logged in, please log in again."
-            resJsonStr <- Utils.parseRes status msg """[]"""
+            let tagId = try props?tagId.AsString() with |_ -> ""
+            let mention = try props?mention.AsString() with |_ -> ""
+            Hi.queryImpl (userId, operation, tagId, mention, &msg, &status, &resJsonStr)
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
     loop()
-
 
 let APIHandler (mailbox:Actor<_>) =
     printfn $"[INFO]: APIHandler on."
@@ -584,38 +578,18 @@ let APIHandler (mailbox:Actor<_>) =
     }
     loop()
 
-let initDb _ = 
-    let databaseFilename = "Twitter.sqlite"
-    let dbPath = @".\" + databaseFilename;
-    // if DB file is not exist, initialize DB
-    if not(File.Exists(dbPath)) then
-        printfn $"[Info]DB doesn't exist {dbPath}. Initialize database..." 
-        let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename
-        // 0. Create Database
-        SQLiteConnection.CreateFile(databaseFilename)
-        // 1. Init Database
-        // 1.a. open connection
-        let connection = new SQLiteConnection(connectionString)
-        connection.Open()
-        // 1.b. Create tables
-        let structureSql =
-            "create table Tweet (id TEXT, content TEXT, publish_user_id TEXT, timestamp TEXT);" +
-            "create table User (id TEXT, email TEXT, nick_name TEXT, password TEXT);" +
-            "create table UserRelation (id TEXT, user_id TEXT, follower_id TEXT);" +
-            "create table HashTag (id TEXT, tag_name TEXT, tweet_id TEXT);" +
-            "create table Mention (id TEXT, user_id TEXT, tweet_id TEXT)"
-        let structureCommand = new SQLiteCommand(structureSql, connection)
-        structureCommand.ExecuteNonQuery() |> ignore
 
-initDb()
+DB.initDb()
 spawn server "APIHandler" APIHandler
-spawn server "LoginHandler" LoginHandler
-spawn server "RegisterHandler" RegisterHandler
-spawn server "TweetHandler" TweetHandler
-spawn server "ReTweetHandler" ReTweetHandler
-spawn server "FollowHandler" FollowHandler
-spawn server "UnFollowHandler" UnFollowHandler
-spawn server "QueryHandler" QueryHandler
+let actorPool = [("LoginHandler", LoginHandler); 
+                 ("RegisterHandler", RegisterHandler); 
+                 ("TweetHandler", TweetHandler); 
+                 ("ReTweetHandler", ReTweetHandler); 
+                 ("FollowHandler", FollowHandler); 
+                 ("UnFollowHandler", UnFollowHandler); 
+                 ("QueryHandler", QueryHandler)]
+for (name, actor) in actorPool do
+    spawn server name actor |> ignore
 connection.Open()
 
 System.Console.Title <- "Server"
