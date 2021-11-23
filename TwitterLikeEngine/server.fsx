@@ -37,14 +37,14 @@ let configuration =
                 helios.tcp {
                     transport-protocol = tcp
                     port = 9001
-                    hostname = ""10.136.105.35""
+                    hostname = ""192.168.1.26""
                 }
             }
         }"
         )
 
 let server = System.create "TwitterClone" (configuration)
-let url = "akka.tcp://TwitterClone@10.136.105.35:9001/user/"
+let url = "akka.tcp://TwitterClone@192.168.1.26:9001/user/"
 
 // database
 let databaseFilename = "Twitter.sqlite"
@@ -98,86 +98,192 @@ let mutable authedUserSet = Set.empty
 //         "email":"test001@test.com"
 //     }
 // }
+type Utils() =
+// Stringified JSON handling
+    member this.parseRes status msg content = 
+        sprintf """{"status": "%s","msg":"%s","content":%s}""" status msg content
 
-let dbQuery queryStr =
-    let selectCommand = new SQLiteCommand(queryStr, connection)
-    try 
-        printfn $"dbQuery {selectCommand.ExecuteScalar().ToString()}"
-        selectCommand.ExecuteScalar().ToString()
-    with | _ -> "error"
+    /// Generate a json string containing all tweets by SQLiteDataReader
+    member this.getTweetJsonStr (reader : SQLiteDataReader) = 
+        let mutable content = "["
+        if  reader.HasRows then
+            while reader.Read() do
+                let tweetInfo = 
+                    sprintf """{"text": "%s", "tweetId":"%s", "userId":"%s", "timestamp":"%s"}"""
+                        (reader.["content"].ToString())
+                        (reader.["id"].ToString())
+                        (reader.["publish_user_id"].ToString())
+                        (System.Convert.ToDateTime(reader.["timestamp"]).ToString("s"))
+                content <- content + tweetInfo + ", "
+            content.Substring(0, content.Length - 2) + "]"
+        else 
+            content + "]"
+    /// Generate SHA1 or ID
+    member this.getSHA1Str input = 
+        let removeChar (stripChars:string) (text:string) =
+            text.Split(stripChars.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) |> String.Concat
+        System.Convert.ToString(DateTime.Now) + input
+        |> Encoding.ASCII.GetBytes
+        |> (new SHA1Managed()).ComputeHash
+        |> System.BitConverter.ToString
+        |> removeChar "-"
+let Utils = Utils()
 
-let dbQueryMany queryStr =
-    let selectCommand = new SQLiteCommand(queryStr, connection)
-    let reader = selectCommand.ExecuteReader()
-    reader
 
-let dbInsert queryStr =
-    let insertCommand = new SQLiteCommand(queryStr, connection)
-    insertCommand.ExecuteNonQuery()
+type DB() =
+// DB operations
+    member this.dbQuery queryStr = 
+        let selectCommand = new SQLiteCommand(queryStr, connection)
+        try 
+            printfn $"dbQuery {selectCommand.ExecuteScalar().ToString()}"
+            selectCommand.ExecuteScalar().ToString()
+        with | _ -> "error"
 
-let parseRes status msg content = 
-    sprintf """{"status": "%s","msg":"%s","content":%s}""" status msg content
+    member this.dbQueryMany queryStr =
+        let selectCommand = new SQLiteCommand(queryStr, connection)
+        let reader = selectCommand.ExecuteReader()
+        reader
+    
+    member this.dbInsert queryStr =
+        let insertCommand = new SQLiteCommand(queryStr, connection)
+        insertCommand.ExecuteNonQuery()
 
-/// Generate a json string containing all tweets by SQLiteDataReader
-let getTweetJsonStr (reader : SQLiteDataReader) = 
-    let mutable content = "["
-    if  reader.HasRows then
-        while reader.Read() do
-            let tweetInfo = 
-                sprintf """{"text": "%s", "tweetId":"%s", "userId":"%s", "timestamp":"%s"}"""
-                    (reader.["content"].ToString())
-                    (reader.["id"].ToString())
-                    (reader.["publish_user_id"].ToString())
-                    (System.Convert.ToDateTime(reader.["timestamp"]).ToString("s"))
-            content <- content + tweetInfo + ", "
-        content.Substring(0, content.Length - 2) + "]"
-    else 
-        content + "]"
+// DB record validation 
+    member this.isUserExist userId =
+        let res = this.dbQuery $"select id from User where id = '{userId}'"
+        if debug then printfn $"-[DEBUG][isUserExist] res = {res}"
+        not (res = "error")
+        
+    member this.isTweetIdExist tweetId = 
+        let res = this.dbQuery $"select id from Tweet where id = '{tweetId}'"
+        if debug then printfn $"-[DEBUG][isValidTweetId] res = {res}"
+        not (res = "error")
 
-/// Return a json string containing all tweets subscribed by a certain user
-let getSubscribedTweets userId =
-    $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp desc"
-    |> dbQueryMany
-    |> getTweetJsonStr
+    member this.isFollowed userId userIdTofollow = 
+        let res = this.dbQuery $"select id from UserRelation where follower_id = '{userId}' and user_id='{userIdTofollow}'"
+        if debug then printfn $"-[DEBUG][isFollowed] res = {res}"
+        not (res = "error")
 
-/// Return the last 20 tweets
-let getLast20Tweets _ =
-    "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp desc limit 20"
-    |> dbQueryMany
-    |> getTweetJsonStr
+// DB queries
+    /// Return a json string containing all tweets subscribed by a certain user
+    member this.getSubscribedTweets userId =
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp desc"
+        |> this.dbQueryMany
+        |> Utils.getTweetJsonStr
 
-let getTweetsRelatedToTag tagName = 
-    $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp desc"
-    |> dbQueryMany
-    |> getTweetJsonStr
+    /// Return the last 20 tweets
+    member this.getLast20Tweets _ =
+        "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp desc limit 20"
+        |> this.dbQueryMany
+        |> Utils.getTweetJsonStr
 
-let getTweetsMentionById userId = 
-    $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
-    |> dbQueryMany
-    |> getTweetJsonStr
+    member this.getTweetsRelatedToTag tagName = 
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp desc"
+        |> this.dbQueryMany
+        |> Utils.getTweetJsonStr
 
-let getTweetsMentionByName userName = 
-    $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
-    |> dbQueryMany
-    |> getTweetJsonStr
+    member this.getTweetsMentionById userId = 
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+        |> this.dbQueryMany
+        |> Utils.getTweetJsonStr
 
-let isUserExist userId =
-    // connection.Open()
-    let res = dbQuery $"select id from User where id = '{userId}'"
-    if debug then printfn $"-[DEBUG][isUserExist] res = {res}"
-    not (res = "error")
+    member this.getTweetsMentionByName userName = 
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+        |> this.dbQueryMany
+        |> Utils.getTweetJsonStr
 
-let isUserLoggedIn userId = 
-    authedUserSet.Contains(userId)
-/// Generate SHA1
-let getSHA1Str input = 
-    let removeChar (stripChars:string) (text:string) =
-        text.Split(stripChars.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) |> String.Concat
-    System.Convert.ToString(DateTime.Now) + input
-    |> Encoding.ASCII.GetBytes
-    |> (new SHA1Managed()).ComputeHash
-    |> System.BitConverter.ToString
-    |> removeChar "-"
+let DB = DB()
+
+type HandlerImpl() =
+    member this.isUserLoggedIn userId = 
+        authedUserSet.Contains(userId)
+
+// Register 
+    member this.registerImpl (userId, password, nickName, email, (msg: byref<_>)) =
+        let mutable flag = false
+        if (nickName = "" || email = "") then 
+            msg <- "Insufficient user information."
+        else if DB.isUserExist userId then
+            msg <- $"UserId {userId} has already been used. Please choose a new one."
+        else
+            let res = DB.dbInsert $"insert into User(id, email, nick_name, password) values ('{userId}', '{email}', '{nickName}', '{password}')"
+            if res <> 1 then 
+                msg <- "Registration Failed. Please try again."
+            else
+                msg <- $"Registration Success. Your user id is {userId}."
+                flag <- true
+        flag
+
+// Login
+    member this.loginImpl (userId, password, (msg: byref<_>)) =
+        let mutable flag = false
+        // check if already loged in
+        if authedUserSet.Contains(userId) then
+            msg <- $"User {userId} has already logged in."
+            flag <- true
+        // find if user exist
+        if not flag && not (DB.isUserExist userId) then 
+                msg <- "User not existed. Please check the user information"
+        // query user's password, check if password matches
+        if not flag then 
+            let pwRef = DB.dbQuery $"select password from User where id = '{userId}'"
+            if password <> pwRef then
+                msg <- "Login Failed. Please try again."
+            else
+                msg <- $"Login Success. You have logged in as {userId}"
+                authedUserSet <- authedUserSet.Add(userId)
+                flag <- true
+        flag
+
+// Tweet
+    member this.processHashtag (tweetId, (hashtag: array<JsonValue>), (msg: byref<_>), (isSuccess: byref<_>)) = 
+        if hashtag.Length > 0 then
+            for tag in hashtag do 
+                    let tagId = Utils.getSHA1Str (tag.AsString())
+                    let dbRes = DB.dbInsert $"insert into HashTag(id, tag_name, tweet_id) values ('{tagId}', '{tag.AsString()}', '{tweetId}')"
+                    if dbRes <> 1 then
+                        msg <- "HashTag are not added properly."
+                        isSuccess <- false
+
+    member this.processMention (tweetId, (mention: array<JsonValue>), (msg: byref<_>), (isSuccess: byref<_>)) =
+        if mention.Length > 0 then
+            for user in mention do 
+                    let mentionId = Utils.getSHA1Str (user.AsString())
+                    let dbRes = DB.dbInsert $"insert into Mention(id, user_id, tweet_id) values ('{mentionId}', '{user.AsString()}', '{tweetId}')"
+                    if dbRes <> 1 then 
+                        msg <- "Mention are not added properly."
+                        isSuccess <- false
+
+    member this.tweetAndRetweetImpl (userId, param, (hashtag: array<JsonValue>), (mention: array<JsonValue>), (msg: byref<_>), oper) = 
+        let mutable isSuccess = true
+        let mutable text = ""
+        // user must already logged in
+        if not (this.isUserLoggedIn userId) then
+            msg <- "User is not logged in, please log in again."
+            isSuccess <- false
+        // tweet mush has content
+        else if (param = "") then
+            if oper = "tweet" then msg <- "Empty tweet. Please add content."
+            if oper = "retweet" then msg <- "Please specify which tweet you want to retweet."
+            isSuccess <- false
+        else 
+            let tweetId = Utils.getSHA1Str ""
+            if oper = "tweet" then text <- param
+            // Get original content for retweet
+            if oper = "retweet" then text <- DB.dbQuery $"select content from Tweet where id = '{param}'"
+            let res = DB.dbInsert $"insert into Tweet(id, content, publish_user_id, timestamp) values ('{tweetId}', '{text}', '{userId}', '{DateTime.Now}')"
+            if res <> 1 then 
+                if oper = "tweet" then msg <- "Tweet send failed. Please try again."
+                if oper = "retweet" then msg <- "Retweet send failed. Please try again."
+                isSuccess <- false
+            else
+                // process tags
+                this.processHashtag (tweetId, hashtag, &msg, &isSuccess)
+                // process mention
+                this.processMention (tweetId, mention, &msg, &isSuccess)
+        isSuccess
+
+let Hi = HandlerImpl()
 
 let RegisterHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
@@ -192,25 +298,9 @@ let RegisterHandler (mailbox:Actor<_>) =
         | Register(userId, password, props) -> 
             let nickName = props?nickName.AsString()
             let email = props?email.AsString()
-            // input check
-            if (nickName = "" || email = "") then 
-                msg <- "Insufficient user information."
-                resJsonStr <- parseRes status msg """[]"""
-                sender <! (resJsonStr)
-                return! loop()
-            // find if user exist
-            if isUserExist userId then 
-                msg <- "UserId has already been used. Please choose a new one."
-            else
-                // connection.Open()
-                let res = dbInsert $"insert into User(id, email, nick_name, password) values ('{userId}', '{email}', '{nickName}', '{password}')"
-                if res = 1 then 
-                    status <- "success"
-                    msg <- $"Registration Success. Your user id is {userId}."
-                else
-                    msg <- "Registration Failed. Please try again."
-                // connection.Close()
-            resJsonStr <- parseRes status msg """[]"""
+            if Hi.registerImpl (userId, password, nickName, email, &msg) then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()
@@ -226,73 +316,17 @@ let LoginHandler (mailbox:Actor<_>) =
         let mutable status = "error"
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
-        let mutable pwRef = ""
         match message with
         | Login(userId, password) -> 
-            // check if already loged in
-            if authedUserSet.Contains(userId) then
+            if Hi.loginImpl(userId, password, &msg) then
                 status <- "success"
-                msg <- $"User {userId} has already logged in."
-                resJsonStr <- parseRes status msg """[]"""
-                sender <! (resJsonStr)
-                return! loop()
-            // find if user exist
-            if not (isUserExist userId) then 
-                msg <- "User not existed. Please check the user information"
-            else
-                // connection.Open()
-                pwRef <- dbQuery $"select password from User where id = '{userId}'"
-                if password = pwRef then 
-                    status <- "success"
-                    msg <- $"Login Success. You have logged in as {userId}"
-                    authedUserSet <- authedUserSet.Add(userId)
-                else
-                    msg <- "Login Failed. Please try again."
-                // connection.Close()
-            resJsonStr <- parseRes status msg """[]"""
+            resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
     loop()
 
-let isTweetIdExist tweetId = 
-    let res = dbQuery $"select id from Tweet where id = '{tweetId}'"
-    if debug then printfn $"-[DEBUG][isValidTweetId] res = {res}"
-    not (res = "error")
-
-let isValidForTOrRet userId content (msg: byref<_>) oper = 
-    let mutable flag = false
-    // user must already logged in
-    if not (isUserLoggedIn userId) then
-        msg <- "User is not logged in, please log in again."
-    // tweet mush has content
-    else if (content = "") then
-        if oper = "tweet" then msg <- "Empty tweet. Please add content."
-        if oper = "retweet" then msg <- "Please specify which tweet you want to retweet."
-    else 
-        flag <- true
-    flag
-
-let processHashtag (hashtag: array<JsonValue>) (msg: byref<_>) (isSuccess: byref<_>) = 
-    if hashtag.Length > 0 then
-        [for tag in hashtag -> (
-                let tagId = getSHA1Str (tag.AsString())
-                let dbRes = dbInsert $"insert into HashTag(id, tag_name, tweet_id) values ('{tagId}', '{tag.AsString()}', '{tweetId}')"
-                if dbRes <> 1 then
-                    msg <- "HashTag are not added properly."
-                    isSuccess <- false
-        )] |> ignore
-
-let processMention (mention: array<JsonValue>) (msg: byref<_>) (isSuccess: byref<_>) =
-    if mention.Length > 0 then
-        [for user in mention -> 
-                let mentionId = getSHA1Str (user.AsString())
-                let dbRes = dbInsert $"insert into Mention(id, user_id, tweet_id) values ('{mentionId}', '{user.AsString()}', '{tweetId}')"
-                if dbRes <> 1 then 
-                    msg <- "Mention are not added properly."
-                    isSuccess <- false
-        ] |> ignore
 
 let TweetHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
@@ -309,20 +343,10 @@ let TweetHandler (mailbox:Actor<_>) =
             let hashtag = try props?hashtag.AsArray() with |_ -> [||]
             let mention = try props?mention.AsArray() with |_ -> [||]
             // user must already logged in
-            if (isValidForTOrRet userId content &msg "tweet") then 
-                let tweetId = getSHA1Str ""
-                let res = dbInsert $"insert into Tweet(id, content, publish_user_id, timestamp) values ('{tweetId}', '{content}', '{userId}', '{DateTime.Now}')"
-                if res <> 1 then 
-                    msg <- "Tweet send failed. Please try again."
-                    isSuccess <- false
-                // process tags
-                processHashtag hashtag &msg &isSuccess
-                // process mention
-                processMention mention &msg &isSuccess
-                if isSuccess then 
-                    status <- "success"
-                    msg <- "Tweet sent."
-            resJsonStr <- parseRes status msg """[]"""
+            if Hi.tweetAndRetweetImpl (userId, content, hashtag, mention, &msg, "tweet") then 
+                status <- "success"
+                msg <- "Tweet sent."
+            resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()
@@ -344,47 +368,29 @@ let ReTweetHandler (mailbox:Actor<_>) =
             let reTweetId = try props?tweetId.AsString() with |_ -> ""
             let hashtag = try props?hashtag.AsArray() with |_ -> [||]
             let mention = try props?mention.AsArray() with |_ -> [||]
-            // user must already logged in
-            if (isValidForTOrRet userId reTweetId &msg "retweet") && (isTweetIdExist reTweetId) then 
-                // get tweet
-                let content = dbQuery $"select content from Tweet where id = '{reTweetId}'"
-                // process tweet
-                let tweetId = getSHA1Str ""
-                let res = dbInsert $"insert into Tweet(id, content, publish_user_id, timestamp) values ('{tweetId}', '{content}', '{userId}', '{DateTime.Now}')"
-                if res <> 1 then 
-                    msg <- "Retweet failed. Please try again."
-                    isSuccess <- false
-                // process tags
-                processHashtag hashtag &msg &isSuccess
-                // process mention
-                processMention mention &msg &isSuccess
-                if isSuccess then 
-                    status <- "success"
-                    msg <- "Retweet success."
-            else 
-                msg <- "User is not logged in, please log in again."
-            resJsonStr <- parseRes status msg """[]"""
+            if Hi.tweetAndRetweetImpl (userId, reTweetId, hashtag, mention, &msg, "retweet")
+                && (DB.isTweetIdExist reTweetId) then 
+                status <- "success"
+                msg <- "Retweet success."
+            resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()
     }
     loop()
 
-let isFollowed userId userIdTofollow = 
-    let res = dbQuery $"select id from UserRelation where follower_id = '{userId}' and user_id='{userIdTofollow}'"
-    if debug then printfn $"-[DEBUG][isFollowed] res = {res}"
-    not (res = "error")
+
 
 let isValidForFollowOrUnfollow userId targetUserId (msg: byref<_>) = 
     let mutable flag = false
     // user must already logged in
-    if not (isUserLoggedIn userId) then
+    if not (Hi.isUserLoggedIn userId) then
         msg <- "User is not logged in, please log in again."
     // target must not be null
     else if (targetUserId = "") then
         msg <- "Please specify which user you want to follow or unfollow."
     // target user must exist
-    else if not (isUserExist targetUserId) then
+    else if not (DB.isUserExist targetUserId) then
         msg <- $"User {targetUserId} not exist. Please check the user information"
     else
         flag <- true
@@ -404,20 +410,20 @@ let FollowHandler (mailbox:Actor<_>) =
             let userIdTofollow = try props?userId.AsString() with |_ -> ""
             if (isValidForFollowOrUnfollow userId userIdTofollow &msg) then 
                 // check if already follewed
-                if (isFollowed userId userIdTofollow) then 
+                if (DB.isFollowed userId userIdTofollow) then 
                     msg <- $"User {userId} already followed user {userIdTofollow}."
-                    resJsonStr <- parseRes status msg """[]"""
+                    resJsonStr <- Utils.parseRes status msg """[]"""
                     sender <! (resJsonStr)
                     return! loop()
                 // process follow
-                let followId = getSHA1Str ""
-                let res = dbInsert $"insert into UserRelation(id, user_id, follower_id) values ('{followId}', '{userIdTofollow}', '{userId}')"
+                let followId = Utils.getSHA1Str ""
+                let res = DB.dbInsert $"insert into UserRelation(id, user_id, follower_id) values ('{followId}', '{userIdTofollow}', '{userId}')"
                 if res <> 1 then 
                     msg <- $"Follow user {userIdTofollow} failed. Please try again."
                 else
                     status <- "success"
                     msg <- $"{userId} successfully followed {userIdTofollow}."
-            resJsonStr <- parseRes status msg """[]"""
+            resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()
@@ -438,24 +444,24 @@ let UnFollowHandler (mailbox:Actor<_>) =
             let userIdToUnfollow = try props?userId.AsString() with |_ -> ""
             if (isValidForFollowOrUnfollow userId userIdToUnfollow &msg) then 
                 // check if already follewed
-                if not (isFollowed userId userIdToUnfollow) then 
+                if not (DB.isFollowed userId userIdToUnfollow) then 
                     msg <- $"User {userId} is not following user {userIdToUnfollow}."
-                    resJsonStr <- parseRes status msg """[]"""
+                    resJsonStr <- Utils.parseRes status msg """[]"""
                     sender <! (resJsonStr)
                     return! loop()
                 // query user relation
-                let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{userIdToUnfollow}'"
+                let userRelationId = DB.dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{userIdToUnfollow}'"
                 if userRelationId = "error" then
                      msg <- $"You are not following user {userIdToUnfollow}."
                 else
                 // process unfollow
-                    let res = dbInsert $"delete from UserRelation where id='{userRelationId}'"
+                    let res = DB.dbInsert $"delete from UserRelation where id='{userRelationId}'"
                     if res <> 1 then 
                         msg <- $"Unfollow user {userIdToUnfollow} failed. Please try again."
                     else
                         status <- "success"
                         msg <- $"{userId} successfully unfollowed {userIdToUnfollow}."
-            resJsonStr <- parseRes status msg """[]"""
+            resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()
@@ -475,52 +481,52 @@ let QueryHandler (mailbox:Actor<_>) =
         | Query(userId, props) -> 
             let operation = try props?operation.AsString() with |_ -> ""
             // user must already logged in
-            if isUserLoggedIn userId then 
+            if Hi.isUserLoggedIn userId then 
             // must has operation
                 if (operation = "") then
                     msg <- "Please specify query operation."
-                    resJsonStr <- parseRes status msg """[]"""
+                    resJsonStr <- Utils.parseRes status msg """[]"""
                     sender <! (resJsonStr)
                     return! loop()
                 match operation with
                 | "subscribe" -> 
                     status <- "success"
                     msg <- $"user {userId}'s subscribed tweets:"
-                    resJsonStr <- parseRes status msg (getSubscribedTweets userId)
+                    resJsonStr <- Utils.parseRes status msg (DB.getSubscribedTweets userId)
                 | "all" ->
                     status <- "success"
                     msg <- "The latest 20 tweets:"
-                    resJsonStr <- parseRes status msg (getLast20Tweets userId)
+                    resJsonStr <- Utils.parseRes status msg (DB.getLast20Tweets userId)
                 | "tag" ->
                     let tagId = try props?tagId.AsString() with |_ -> ""
                     if (tagId = "") then
                         msg <- "Please specify which tagId you want to query."
-                        resJsonStr <- parseRes status msg """[]"""
+                        resJsonStr <- Utils.parseRes status msg """[]"""
                         sender <! (resJsonStr)
                         return! loop()
                     status <- "success"
                     msg <- $"Tweets related to tag {tagId}:"
-                    resJsonStr <- parseRes status msg (getTweetsRelatedToTag tagId)
+                    resJsonStr <- Utils.parseRes status msg (DB.getTweetsRelatedToTag tagId)
                 | "mention" -> 
                     let mention = try props?mention.AsString() with |_ -> ""
                     if (mention = "") then
                         msg <- "Please specify which user you want to query."
-                        resJsonStr <- parseRes status msg """[]"""
+                        resJsonStr <- Utils.parseRes status msg """[]"""
                         sender <! (resJsonStr)
                         return! loop()
-                    let mutable tweets = getTweetsMentionById mention
-                    if tweets = "[]" then tweets <- getTweetsMentionByName mention
+                    let mutable tweets = DB.getTweetsMentionById mention
+                    if tweets = "[]" then tweets <- DB.getTweetsMentionByName mention
                     status <- "success"
                     msg <- $"Tweets related to user {mention}:"
-                    resJsonStr <- parseRes status msg tweets
+                    resJsonStr <- Utils.parseRes status msg tweets
                 | _ -> 
                     printfn $"[ERROR]Query operation not correct! operation: {operation}"
                     msg <- $"Query operation not correct! operation: {operation}"
-                    resJsonStr <- parseRes status msg """[]"""
+                    resJsonStr <- Utils.parseRes status msg """[]"""
                 sender <! (resJsonStr)
             else 
                 msg <- "User is not logged in, please log in again."
-            resJsonStr <- parseRes status msg """[]"""
+            resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
         return! loop()

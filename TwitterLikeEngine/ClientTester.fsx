@@ -28,7 +28,7 @@ let config =
                 provider = ""Akka.Remote.RemoteActorRefProvider, Akka.Remote""
             }
             remote.helios.tcp {
-                hostname = ""10.136.105.35""
+                hostname = ""192.168.1.26""
                 port = 9100
             }
         }"
@@ -75,13 +75,13 @@ type API =
 // spawn remoteSystem "coordinator" coordinator
 
 let tester _ = 
-    let api = "Follow" // "Login" "Register" "Tweet" "ReTweet" "Follow" "UnFollow" "Query"
-    let id = "Admin004"
-    let password = "Admin004"
+    let api = "Register" // "Login" "Register" "Tweet" "ReTweet" "Follow" "UnFollow" "Query"
+    let id = "Admin007"
+    let password = "Admin007"
     let prop = """{}"""
     let registerProp = sprintf """{"email": "%s", "nickName": "%s"}"""
-                            "test6@test.com"
-                            "hannah"
+                            "test7@test.com"
+                            "Wang"
     let loginProp = """{}"""
 
     let tweetProp1 = sprintf """{"content": "%s"}"""
@@ -110,11 +110,11 @@ let tester _ =
     let queryProp4 = sprintf """{"operation": "%s"}""" //subscribe || tag || mention || all
                         "all"
     let json = sprintf """{"api": "%s","auth":{"id":"%s","password":"%s"},"props":%s}"""
-                    api id password followProp
+                    api id password registerProp
     // let json = sprintf """{"status": "%s","msg":"%s","content":%s}""" "200" "success" """[{"Jan": "Alexander"}]"""
     // printfn "%s" json
     // printfn "%A" (JsonValue.Parse(json))?auth
-    let server = remoteSystem.ActorSelection ("akka.tcp://TwitterClone@10.136.105.35:9001/user/APIHandler")
+    let server = remoteSystem.ActorSelection ("akka.tcp://TwitterClone@192.168.1.26:9001/user/APIHandler")
     let response = Async.RunSynchronously(server <? Req(json))
 
     match response with
