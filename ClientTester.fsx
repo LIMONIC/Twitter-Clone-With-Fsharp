@@ -67,7 +67,7 @@ let mutable pwd = ""
 
 let testSuccess = "{\"status\": \"success\", \"msg\": \"test success.\",\"content\": []}"
 let testError = "{\"status\": \"error\", \"msg\": \"test error.\",\"content\": []}"
-let flag = true
+let flag = false
 
 let registerUser() = 
     printfn "Enter user ID:"
