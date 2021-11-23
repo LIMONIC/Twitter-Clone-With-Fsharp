@@ -51,12 +51,6 @@ let databaseFilename = "Twitter.sqlite"
 let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename  
 let connection = new SQLiteConnection(connectionString)
 type API = 
-    // | Register of (string)// userid, pass
-    // | Login of (string)// userid, pass
-    // | Tweet of (string)// userid, pass, tweet_content
-    // | ReTweet of (string)// userid, pass, tweet_id
-    // | Follow of (string)// userid, pass, user_id
-    // | UnFollow of (string)// userid, pass, user_id
     | Req of (string) // request
     | Res of (string) // response
 
@@ -111,11 +105,6 @@ let dbQuery queryStr =
         printfn $"dbQuery {selectCommand.ExecuteScalar().ToString()}"
         selectCommand.ExecuteScalar().ToString()
     with | _ -> "error"
-    // if selectCommand.ExecuteReader().HasRows then
-    //     selectCommand.ExecuteScalar().ToString()
-    // else
-    //     "error"
-
 
 let dbQueryMany queryStr =
     let selectCommand = new SQLiteCommand(queryStr, connection)
@@ -388,6 +377,32 @@ let ReTweetHandler (mailbox:Actor<_>) =
     }
     loop()
 
+let isFollowed userId userIdTofollow = 
+    let res = dbQuery $"select id from UserRelation where follower_id = '{userId}' and user_id='{userIdTofollow}'"
+    if debug then printfn $"-[DEBUG][isFollowed] res = {res}"
+    not (res = "error")
+
+let isValidForFollowOrUnfollow userId targetUserId (msg: byref<_>) (resJsonStr: byref<_>) (sender: inref<_>) = 
+    let mutable flag = true
+    // user must already logged in
+    if not (isUserLoggedIn userId) then
+        msg <- "User is not logged in, please log in again."
+        flag <- false
+    // target must not be null
+    if flag && (targetUserId = "") then
+        msg <- "Please specify which user you want to follow or unfollow."
+        flag <- false
+    // target user must exist
+    if flag && not (isUserExist targetUserId) then
+        msg <- $"User {targetUserId} not exist. Please check the user information"
+        flag <- false
+    if flag = false then 
+        resJsonStr <- parseRes "error" msg """[]"""
+        sender <! (resJsonStr)
+        false
+    else 
+        true
+
 let FollowHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
         let! message = mailbox.Receive()
@@ -399,25 +414,22 @@ let FollowHandler (mailbox:Actor<_>) =
         let mutable resJsonStr = ""
         match message with
         | Follow(userId, props) -> 
-            let followUserId = try props?userId.AsString() with |_ -> ""
-            // user must already logged in
-            if isUserLoggedIn userId then 
-            // must has followUserId
-                if (followUserId = "") then
-                    msg <- "Please specify which user you want to follow."
+            let userIdTofollow = try props?userId.AsString() with |_ -> ""
+            if (isValidForFollowOrUnfollow userId userIdTofollow &msg &resJsonStr &sender) then 
+                // check if already follewed
+                if (isFollowed userId userIdTofollow) then 
+                    msg <- $"User {userId} already followed user {userIdTofollow}."
                     resJsonStr <- parseRes status msg """[]"""
                     sender <! (resJsonStr)
                     return! loop()
                 // process follow
                 let followId = getSHA1Str ""
-                let res = dbInsert "insert into UserRelation(id, user_id, follower_id) values ('{followId}', '{followUserId}', '{userId}')"
+                let res = dbInsert $"insert into UserRelation(id, user_id, follower_id) values ('{followId}', '{userIdTofollow}', '{userId}')"
                 if res <> 1 then 
-                    msg <- $"Follow user {followUserId} failed. Please try again."
+                    msg <- $"Follow user {userIdTofollow} failed. Please try again."
                 else
                     status <- "success"
-                    msg <- "Retweet success."
-            else 
-                msg <- "User is not logged in, please log in again."
+                    msg <- $"{userId} successfully followed {userIdTofollow}."
             resJsonStr <- parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
@@ -436,29 +448,26 @@ let UnFollowHandler (mailbox:Actor<_>) =
         let mutable resJsonStr = ""
         match message with
         | UnFollow(userId, props) -> 
-            let unfollowUserId = try props?userId.AsString() with |_ -> ""
-            // user must already logged in
-            if isUserLoggedIn userId then 
-            // must has unfollowUserId
-                if (unfollowUserId = "") then
-                    msg <- "Please specify which user you want to unfollow."
+            let userIdToUnfollow = try props?userId.AsString() with |_ -> ""
+            if (isValidForFollowOrUnfollow userId userIdToUnfollow &msg &resJsonStr &sender) then 
+                // check if already follewed
+                if not (isFollowed userId userIdToUnfollow) then 
+                    msg <- $"User {userId} is not following user {userIdToUnfollow}."
                     resJsonStr <- parseRes status msg """[]"""
                     sender <! (resJsonStr)
                     return! loop()
                 // query user relation
-                let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{unfollowUserId}'"
+                let userRelationId = dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{userIdToUnfollow}'"
                 if userRelationId = "error" then
-                     msg <- $"You are not following user {unfollowUserId}."
+                     msg <- $"You are not following user {userIdToUnfollow}."
                 else
                 // process unfollow
                     let res = dbInsert $"delete from UserRelation where id='{userRelationId}'"
                     if res <> 1 then 
-                        msg <- $"Unfollow user {unfollowUserId} failed. Please try again."
+                        msg <- $"Unfollow user {userIdToUnfollow} failed. Please try again."
                     else
                         status <- "success"
-                        msg <- "Retweet success."
-            else 
-                msg <- "User is not logged in, please log in again."
+                        msg <- $"{userId} successfully unfollowed {userIdToUnfollow}."
             resJsonStr <- parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()

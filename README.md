@@ -251,3 +251,128 @@ Retweet
 }
 --------------------------------
 ```
+
+Follow
+
+```json
+// success
+------------Request-------------
+{
+  "api": "Follow",
+  "auth": {
+    "id": "Admin004",
+    "password": "Admin004"
+  },
+  "props": {
+    "userId": "Admin001"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "Admin004 successfully followed Admin001.",
+  "content": []
+}
+--------------------------------
+// user to follow not exist
+------------Request-------------
+{
+  "api": "Follow",
+  "auth": {
+    "id": "Admin004",
+    "password": "Admin004"
+  },
+  "props": {
+    "userId": "Admin0011"
+  }
+}
+------------Response------------
+{
+  "status": "error",
+  "msg": "User Admin0011 not exist. Please check the user information",
+  "content": []
+}
+--------------------------------
+// already followed
+------------Request-------------
+{
+  "api": "Follow",
+  "auth": {
+    "id": "Admin004",
+    "password": "Admin004"
+  },
+  "props": {
+    "userId": "Admin003"
+  }
+}
+------------Response------------
+{
+  "status": "error",
+  "msg": "User Admin004 already followed user Admin003.",      
+  "content": []
+}
+--------------------------------
+```
+
+unfollow
+
+```json
+
+// success
+------------Request-------------
+{
+  "api": "UnFollow",
+  "auth": {
+    "id": "Admin004",
+    "password": "Admin004"
+  },
+  "props": {
+    "userId": "Admin001"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "Admin004 successfully unfollowed Admin001.",
+  "content": []
+}
+--------------------------------
+// not following
+------------Request-------------
+{
+  "api": "UnFollow",
+  "auth": {
+    "id": "Admin004",
+    "password": "Admin004"
+  },
+  "props": {
+    "userId": "Admin003"
+  }
+}
+------------Response------------
+{
+  "status": "error",
+  "msg": "User Admin004 is not following user Admin003.",      
+  "content": []
+}
+--------------------------------
+// user not exist
+------------Request-------------
+{
+  "api": "UnFollow",
+  "auth": {
+    "id": "Admin004",
+    "password": "Admin004"
+  },
+  "props": {
+    "userId": "Admin009"
+  }
+}
+------------Response------------
+{
+  "status": "error",
+  "msg": "User Admin009 not exist. Please check the user information",
+  "content": []
+}
+--------------------------------
+```
