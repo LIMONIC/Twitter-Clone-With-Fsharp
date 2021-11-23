@@ -376,3 +376,184 @@ unfollow
 }
 --------------------------------
 ```
+
+Query
+
+```json
+// All
+------------Request-------------
+{
+  "api": "Query",
+  "auth": {
+    "id": "Admin002",
+    "password": "Admin002"
+  },
+  "props": {
+    "operation": "all"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "The latest 20 tweets:",
+  "content": [
+    {
+      "text": "Nice weather balabala!",
+      "tweetId": "A813A096C85E37AA6890073A02576503ECA5015C",   
+      "userId": "Admin004",
+      "timestamp": "2021-11-22T17:18:37"
+    },
+    {
+      "text": "Suave is a simple web development F#",
+      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
+      "userId": "Admin006",
+      "timestamp": "2021-11-22T17:14:10"
+    },
+    {
+      "text": "Nice weather bala...
+--------------------------------
+// subscribe - no result
+------------Request-------------
+{
+  "api": "Query",
+  "auth": {
+    "id": "Admin002",
+    "password": "Admin002"
+  },
+  "props": {
+    "operation": "subscribe"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "user Admin002's subscribed tweets:",
+  "content": []
+}
+--------------------------------
+// subscribe
+------------Request-------------
+{
+  "api": "Query",
+  "auth": {
+    "id": "Admin002",
+    "password": "Admin002"
+  },
+  "props": {
+    "operation": "subscribe"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "user Admin002's subscribed tweets:",
+  "content": [
+    {
+      "text": "Nice weather balabala!",
+      "tweetId": "A813A096C85E37AA6890073A02576503ECA5015C",   
+      "userId": "Admin004",
+      "timestamp": "2021-11-22T17:18:37"
+    },
+    {
+      "text": "Suave is a simple web development F#",
+      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
+      "userId": "Admin006",
+      "timestamp": "2021-11-22T17:14:10"
+    }
+  ]
+}
+--------------------------------
+// tag
+------------Request-------------
+{
+  "api": "Query",
+  "auth": {
+    "id": "Admin002",
+    "password": "Admin002"
+  },
+  "props": {
+    "operation": "tag",
+    "tagId": "Suave"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "Tweets related to tag Suave:",
+  "content": [
+    {
+      "text": "Suave is a simple web development F#",
+      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
+      "userId": "Admin006",
+      "timestamp": "2021-11-22T17:14:10"
+    }
+  ]
+}
+--------------------------------
+// mention-user id
+------------Request-------------
+{
+  "api": "Query",
+  "auth": {
+    "id": "Admin002",
+    "password": "Admin002"
+  },
+  "props": {
+    "operation": "mention",
+    "mention": "Admin001"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "Tweets related to user Admin001:",
+  "content": [
+    {
+      "text": "Suave is a simple web development F#",
+      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
+      "userId": "Admin006",
+      "timestamp": "2021-11-22T17:14:10"
+    },
+    {
+      "text": "Nice weather balabala!",
+      "tweetId": "0F135E30DCF16D471B8219B55431B61F9321F884",   
+      "userId": "Admin005",
+      "timestamp": "2021-11-21T23:38:14"
+    },
+    {
+      "text": "Nice w...
+--------------------------------
+// mention-nick name
+------------Request-------------
+{
+  "api": "Query",
+  "auth": {
+    "id": "Admin002",
+    "password": "Admin002"
+  },
+  "props": {
+    "operation": "mention",
+    "mention": "Bob"
+  }
+}
+------------Response------------
+{
+  "status": "success",
+  "msg": "Tweets related to user Bob:",
+  "content": [
+    {
+      "text": "Suave is a simple web development F#",
+      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
+      "userId": "Admin006",
+      "timestamp": "2021-11-22T17:14:10"
+    },
+    {
+      "text": "Nice weather balabala!",
+      "tweetId": "0F135E30DCF16D471B8219B55431B61F9321F884",   
+      "userId": "Admin005",
+      "timestamp": "2021-11-21T23:38:14"
+    }
+  ]
+}
+--------------------------------
+```
