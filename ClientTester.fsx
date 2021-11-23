@@ -70,7 +70,7 @@ let mutable pwd = ""
 
 let testSuccess = "{\"status\": \"success\", \"msg\": \"test success.\",\"content\": []}"
 let testError = "{\"status\": \"error\", \"msg\": \"test error.\",\"content\": []}"
-let flag = true
+let flag = false
 
 let registerUser() = 
     printfn "Enter user ID:"
@@ -88,8 +88,8 @@ let registerUser() =
     let response = if flag then testSuccess else testError
     
     let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let status = infoJson?status.ToString()
-    let msg = "\t\t" + infoJson?msg.ToString()
+    let status = infoJson?status.AsString()
+    let msg = "\t\t" + infoJson?msg.AsString()
     if status = "error" then
         uid <- ""
         pwd <- ""
@@ -110,11 +110,13 @@ let loginUser() =
     let response = if flag then testSuccess else testError
 
     let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let status = infoJson?status.ToString()
-    let msg = "\t\t" + infoJson?msg.ToString()
+    let status = infoJson?status.AsString()
+    let msg = "\t\t" + infoJson?msg.AsString()
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     printfn $"{msg}"
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+    //printfn $"{infoJson?status.AsString()}"
     if status = "error" then
         uid <- ""
         pwd <- ""
@@ -162,8 +164,8 @@ let tweet () =
     let response = if flag then testSuccess else testError
 
     let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let status = infoJson?status.ToString()
-    let msg = "\t\t" + infoJson?msg.ToString()
+    let status = infoJson?status.AsString()
+    let msg = "\t\t" + infoJson?msg.AsString()
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     printfn $"{msg}"
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -188,8 +190,8 @@ let retweet () =
     let response = if flag then testSuccess else testError
 
     let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let status = infoJson?status.ToString()
-    let msg = "\t\t" + infoJson?msg.ToString()
+    let status = infoJson?status.AsString()
+    let msg = "\t\t" + infoJson?msg.AsString()
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     printfn $"{msg}"
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -206,8 +208,8 @@ let follow () =
     let response = if flag then testSuccess else testError
 
     let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let status = infoJson?status.ToString()
-    let msg = "\t\t" + infoJson?msg.ToString()
+    let status = infoJson?status.AsString()
+    let msg = "\t\t" + infoJson?msg.AsString()
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     printfn $"{msg}"
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -224,8 +226,8 @@ let unfollow () =
     let response = if flag then testSuccess else testError
     
     let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let status = infoJson?status.ToString()
-    let msg = "\t\t" + infoJson?msg.ToString()
+    let status = infoJson?status.AsString()
+    let msg = "\t\t" + infoJson?msg.AsString()
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     printfn $"{msg}"
     printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
