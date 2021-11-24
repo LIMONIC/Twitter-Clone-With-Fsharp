@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="client.fsx" />
+    <None Include="Twitter.sqlite" />
+    <None Include="server.fsx" />
+    <None Include="sqlite.fsx" />
     <None Include="ClientTester.fsx" />
     <Compile Include="Program.fs" />
   </ItemGroup>
