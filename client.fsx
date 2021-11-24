@@ -46,6 +46,8 @@ type API =
     | Req of (string)
     | Res of (string)
 
+
+
 let mutable uid = ""
 let mutable pwd = ""
 
@@ -61,13 +63,13 @@ let getResponse res =
         ""
 
 let registerUser() = 
-    printfn "Enter user ID:"
+    printf "Enter user ID:"
     uid <- Console.ReadLine()
-    printfn "Enter user name:"
+    printf "Enter user name:"
     let name = Console.ReadLine()
-    printfn "Enter email address:"
+    printf "Enter email address:"
     let email = Console.ReadLine()
-    printfn "Enter password:"
+    printf "Enter password:"
     pwd <- Console.ReadLine()
     let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
    
@@ -86,9 +88,9 @@ let registerUser() =
 
 
 let loginUser _ =
-    printfn "\nEnter User ID: "
+    printf "\nEnter User ID: "
     uid <- Console.ReadLine()
-    printfn "\nEnter Password: "
+    printf "\nEnter Password: "
     pwd <- Console.ReadLine()
 
     let info = "{\"api\": \"Login\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{}}"
@@ -273,7 +275,20 @@ let rec showTweets () =
 
 let rec mainMenu () =
     printfn "\n\n[----------- MAIN SCREEN -----------]"
-    printfn "1. Tweet\n2. ReTweet\n3. Follow\n4. Unfollow\n5. show Tweets\n6. Logout\n7. Exit"
+    let info = "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"operation\": \"all\"}}"
+    let response = getResponse((Async.RunSynchronously (server <? Req(info))))
+    let infoJson = FSharp.Data.JsonValue.Parse(response)
+    let msg = infoJson?msg.AsString()
+    printfn"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    let tweets = infoJson?content.AsArray()
+    for record in tweets do
+        printfn $"Tweet ID: {record?tweetId.AsString()}"
+        printfn $"User ID: {record?userId.AsString()}"
+        printfn $"Time: {record?timestamp.AsString()}"
+        printfn $"Content: \n{record?text.AsString()}"
+        printfn"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    printfn "Operations: "
+    printfn "1. Tweet\n2. ReTweet\n3. Follow\n4. Unfollow\n5. Query Tweets\n6. Refresh\n7. Logout\n8. Exit"
     printf "Enter your choice: "
     match Int32.TryParse (Console.ReadLine()) with
     | true, 1 -> 
@@ -292,12 +307,14 @@ let rec mainMenu () =
         showTweets() |> ignore
         mainMenu()
     | true, 6 ->
+        mainMenu()
+    | true, 7 ->
         uid <- ""
         pwd <- ""
         printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         printfn "\t\tLogout Successfully!"  
         printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    | true, 7 ->
+    | true, 8 ->
         printfn"\n\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         printfn "\t\tGoodBye!"  
         printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
