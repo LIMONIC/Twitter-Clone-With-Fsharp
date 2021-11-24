@@ -46,8 +46,6 @@ type API =
     | Req of (string)
     | Res of (string)
 
-
-
 let mutable uid = ""
 let mutable pwd = ""
 
@@ -281,13 +279,17 @@ let rec mainMenu () =
     let msg = infoJson?msg.AsString()
     printfn"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     let tweets = infoJson?content.AsArray()
+    let mutable i = 0
+    printfn $"number of all tweets: {Seq.length tweets}" 
     for record in tweets do
-        printfn $"Tweet ID: {record?tweetId.AsString()}"
-        printfn $"User ID: {record?userId.AsString()}"
-        printfn $"Time: {record?timestamp.AsString()}"
-        printfn $"Content: \n{record?text.AsString()}"
-        printfn"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    printfn "Operations: "
+        i <- i + 1
+        if i < 10 then 
+            printfn $"Tweet ID: {record?tweetId.AsString()}"
+            printfn $"User ID: {record?userId.AsString()}"
+            printfn $"Time: {record?timestamp.AsString()}"
+            printfn $"Content: \n{record?text.AsString()}"
+            printfn"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    printfn "\nOperations: "
     printfn "1. Tweet\n2. ReTweet\n3. Follow\n4. Unfollow\n5. Query Tweets\n6. Refresh\n7. Logout\n8. Exit"
     printf "Enter your choice: "
     match Int32.TryParse (Console.ReadLine()) with
