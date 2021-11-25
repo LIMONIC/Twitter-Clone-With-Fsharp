@@ -75,9 +75,9 @@ type API =
 // spawn remoteSystem "coordinator" coordinator
 
 let tester _ = 
-    let api = "Query" // "Login" "Register" "Tweet" "ReTweet" "Follow" "UnFollow" "Query"
-    let id = "Admin007"
-    let password = "Admin007"
+    let api = "UnFollow" // "Login" "Register" "Tweet" "ReTweet" "Follow" "UnFollow" "Query"
+    let id = "Admin003"
+    let password = "Admin003"
     let prop = """{}"""
     let registerProp = sprintf """{"email": "%s", "nickName": "%s"}"""
                             "test7@test.com"
@@ -99,7 +99,7 @@ let tester _ =
     let followProp = sprintf """{"userId": "%s"}"""
                         "Admin005"
     let unfollowProp = sprintf """{"userId": "%s"}"""
-                        "Admin001"
+                        "Admin005"
 
     let queryProp1 = sprintf """{"operation": "%s"}""" //subscribe || tag || mention || all
                         "subscribe"
@@ -110,7 +110,7 @@ let tester _ =
     let queryProp4 = sprintf """{"operation": "%s"}""" //subscribe || tag || mention || all
                         "all"
     let json = sprintf """{"api": "%s","auth":{"id":"%s","password":"%s"},"props":%s}"""
-                    api id password queryProp4
+                    api id password unfollowProp
     // let json = sprintf """{"status": "%s","msg":"%s","content":%s}""" "200" "success" """[{"Jan": "Alexander"}]"""
     // printfn "%s" json
     // printfn "%A" (JsonValue.Parse(json))?auth

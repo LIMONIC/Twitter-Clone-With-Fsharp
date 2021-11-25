@@ -87,7 +87,7 @@ type Utils() =
             content.Substring(0, content.Length - 2) + "]"
         else 
             content + "]"
-    /// Generate SHA1 or ID
+    /// Generate SHA1 for ID
     member this.getSHA1Str input = 
         let removeChar (stripChars:string) (text:string) =
             text.Split(stripChars.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) |> String.Concat
@@ -315,6 +315,7 @@ type HandlerImpl() =
             if not (DB.isFollowed userId userIdToUnfollow) then 
                 msg <- $"User {userId} is not following user {userIdToUnfollow}."
                 // query user relation
+            else
                 let userRelationId = DB.dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{userIdToUnfollow}'"
                 if userRelationId = "error" then
                      msg <- $"You are not following user {userIdToUnfollow}."
