@@ -38,7 +38,7 @@ let config =
         }" ip port
     )
 let remoteSystem = System.create "TwitterClone" config
-let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
+//let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
 
 let mutable exit = false
 
@@ -52,6 +52,7 @@ let mutable pwd = ""
 let testSuccess = "{\"status\": \"success\", \"msg\": \"test success.\",\"content\": []}"
 let testError = "{\"status\": \"error\", \"msg\": \"test error.\",\"content\": []}"
 let flag = false
+let mutable live = false
 
 let getResponse res = 
     match res with
@@ -59,6 +60,36 @@ let getResponse res =
         resinfo
     | _ -> 
         ""
+
+let clientActor = 
+    spawn remoteSystem ("client" + ip)
+        (fun mailbox ->
+            let rec loop() = actor {
+                let! message = mailbox.Receive()
+                let sender = mailbox.Sender()
+                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
+                match message with
+                | Req(info) -> 
+                    //printf $"{info}"
+                    let response = getResponse(Async.RunSynchronously(server <? Req(info)))
+                    sender <! Res(response)
+                | Res(info) ->
+                    if live then 
+                        let infoJson = FSharp.Data.JsonValue.Parse(info)
+                        let msg = infoJson?msg.AsString()
+                        printfn"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+                        let tweets = infoJson?content.AsArray()
+                        for record in tweets do
+                            printfn $"Tweet ID: {record?tweetId.AsString()}"
+                            printfn $"User ID: {record?userId.AsString()}"
+                            printfn $"Time: {record?timestamp.AsString()}"
+                            printfn $"Content: \n{record?text.AsString()}"
+                            printfn"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"  
+                | _ -> ()
+                return! loop()
+            }
+            loop()
+        )
 
 let registerUser() = 
     printf "Enter user ID:"
@@ -71,7 +102,7 @@ let registerUser() =
     pwd <- Console.ReadLine()
     let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
    
-    let response = getResponse((Async.RunSynchronously (server <? Req(info))))
+    let response = getResponse((Async.RunSynchronously (clientActor <? Req(info))))
     //let response = if flag then testSuccess else testError
     
     let infoJson = FSharp.Data.JsonValue.Parse(response)
@@ -93,7 +124,7 @@ let loginUser _ =
 
     let info = "{\"api\": \"Login\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{}}"
     
-    let response = getResponse(Async.RunSynchronously(server <? Req(info)))
+    let response = getResponse(Async.RunSynchronously(clientActor <? Req(info)))
     let infoJson = FSharp.Data.JsonValue.Parse(response)
     let status = infoJson?status.AsString()
     let msg = "\t\t" + infoJson?msg.AsString()
@@ -111,7 +142,7 @@ let loginUser _ =
 let logoutUser _ =
     let info = "{\"api\": \"Logout\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{}}"
     
-    let response = getResponse(Async.RunSynchronously(server <? Req(info)))
+    let response = getResponse(Async.RunSynchronously(clientActor <? Req(info)))
     let infoJson = FSharp.Data.JsonValue.Parse(response)
     let status = infoJson?status.AsString()
     let msg = "\t\t" + infoJson?msg.AsString()
@@ -158,7 +189,7 @@ let tweet () =
     
     let info = "{\"api\": \"Tweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"},  \"props\":{\"content\": \""+content+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
 
-    let response = getResponse((Async.RunSynchronously (server <? Req(info))))
+    let response = getResponse((Async.RunSynchronously (clientActor <? Req(info))))
     //let response = if flag then testSuccess else testError
 
     let infoJson = FSharp.Data.JsonValue.Parse(response)
@@ -182,7 +213,7 @@ let retweet () =
     
     let info = "{\"api\": \"ReTweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"},  \"props\":{\"tweetId\": \""+tweetId+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
 
-    let response = getResponse((Async.RunSynchronously (server <? Req(info))))
+    let response = getResponse((Async.RunSynchronously (clientActor <? Req(info))))
     //let response = if flag then testSuccess else testError
 
     let infoJson = FSharp.Data.JsonValue.Parse(response)
@@ -199,7 +230,7 @@ let follow () =
     let followid = Console.ReadLine()
     let info = "{\"api\": \"Follow\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"userId\": \""+followid+"\"}}"
 
-    let response = getResponse((Async.RunSynchronously (server <? Req(info))))
+    let response = getResponse((Async.RunSynchronously (clientActor <? Req(info))))
     //let response = if flag then testSuccess else testError
 
     let infoJson = FSharp.Data.JsonValue.Parse(response)
@@ -216,7 +247,7 @@ let unfollow () =
     let followid = Console.ReadLine()
     let info = "{\"api\": \"UnFollow\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"userId\": \""+followid+"\"}}"
 
-    let response = getResponse(Async.RunSynchronously (server <? Req(info)))
+    let response = getResponse(Async.RunSynchronously (clientActor <? Req(info)))
     //let response = if flag then testSuccess else testError
     
     let infoJson = FSharp.Data.JsonValue.Parse(response)
@@ -263,7 +294,7 @@ let rec showTweets () =
             else 
                 "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"operation\": \""+operation+"\"}}"
 
-        let response = getResponse((Async.RunSynchronously (server <? Req(info))))
+        let response = getResponse((Async.RunSynchronously (clientActor <? Req(info))))
         //let response = emptyquery
         let infoJson = FSharp.Data.JsonValue.Parse(response)
         let status = infoJson?status.AsString()
@@ -281,31 +312,38 @@ let rec showTweets () =
         printfn "\nPress Enter to the Main Page..."
         Console.ReadLine()
 
-            
+let tweetsPage() = 
+    live <- true
+    while live do
+        let info = "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"operation\": \"all\"}}"
+        let response = getResponse((Async.RunSynchronously (clientActor <? Req(info))))
+        let infoJson = FSharp.Data.JsonValue.Parse(response)
+        let msg = infoJson?msg.AsString()
+        printfn"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        let tweets = infoJson?content.AsArray()
+        let mutable i = 0
+        printfn $"number of all tweets: {Seq.length tweets}" 
+        for record in tweets do
+            i <- i + 1
+            if i < 10 then 
+                printfn $"Tweet ID: {record?tweetId.AsString()}"
+                printfn $"User ID: {record?userId.AsString()}"
+                printfn $"Time: {record?timestamp.AsString()}"
+                printfn $"Content: \n{record?text.AsString()}"
+                printfn"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        let temp = Console.ReadLine()
+        live <- false
+        
 
 
 let rec mainMenu () =
     printfn "\n\n[----------- MAIN SCREEN -----------]"
-    let info = "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"operation\": \"all\"}}"
-    let response = getResponse((Async.RunSynchronously (server <? Req(info))))
-    let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let msg = infoJson?msg.AsString()
-    printfn"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    let tweets = infoJson?content.AsArray()
-    let mutable i = 0
-    printfn $"number of all tweets: {Seq.length tweets}" 
-    for record in tweets do
-        i <- i + 1
-        if i < 10 then 
-            printfn $"Tweet ID: {record?tweetId.AsString()}"
-            printfn $"User ID: {record?userId.AsString()}"
-            printfn $"Time: {record?timestamp.AsString()}"
-            printfn $"Content: \n{record?text.AsString()}"
-            printfn"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    printfn "\nOperations: "
-    printfn "1. Tweet\n2. ReTweet\n3. Follow\n4. Unfollow\n5. Query Tweets\n6. Refresh\n7. Logout\n8. Exit"
+    printfn "9. Tweets Page\n1. Tweet\n2. ReTweet\n3. Follow\n4. Unfollow\n5. Query Tweets\n6. Refresh\n7. Logout\n8. Exit"
     printf "Enter your choice: "
     match Int32.TryParse (Console.ReadLine()) with
+    | true, 9 -> 
+        tweetsPage()
+        mainMenu()
     | true, 1 -> 
         tweet()
         mainMenu()
