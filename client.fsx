@@ -67,7 +67,7 @@ let clientActor =
             let rec loop() = actor {
                 let! message = mailbox.Receive()
                 let sender = mailbox.Sender()
-                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
+                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.1.41:9001/user/APIHandler")
                 match message with
                 | Req(info) -> 
                     //printf $"{info}"
