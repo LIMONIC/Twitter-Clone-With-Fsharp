@@ -15,24 +15,46 @@ open Akka.Remote
 open Akka.Serialization
 open System.Diagnostics
 
-let config =
+//let config =
+//    ConfigurationFactory.ParseString(
+//        sprintf @"akka {
+//            actor {
+//                serializers {
+//                    hyperion = ""Akka.Serialization.HyperionSerializer, Akka.Serialization.Hyperion""
+//                }
+//                serialization-bindings {
+//                    ""System.Object"" = hyperion
+//                } 
+//                provider = ""Akka.Remote.RemoteActorRefProvider, Akka.Remote""
+//            }
+//            remote.helios.tcp {
+//                hostname = ""192.168.171.128""
+//                port = 9010
+//            }
+//        }" 
+//    )
+
+let config = 
     ConfigurationFactory.ParseString(
-        sprintf @"akka {
+        @"akka {
             actor {
                 serializers {
                     hyperion = ""Akka.Serialization.HyperionSerializer, Akka.Serialization.Hyperion""
                 }
                 serialization-bindings {
                     ""System.Object"" = hyperion
-                } 
+                }
                 provider = ""Akka.Remote.RemoteActorRefProvider, Akka.Remote""
             }
-            remote.helios.tcp {
-                hostname = ""192.168.171.128""
-                port = 9010
+            remote {
+                helios.tcp {
+                    transport-protocol = tcp
+                    port = 9010
+                    hostname = ""192.168.171.128""
+                }
             }
-        }" 
-    )
+        }"
+        )
 let remoteSystem = System.create "TwitterClone" config
 let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
 
@@ -42,10 +64,10 @@ let percentOf(number: int, percent: float) =
 let args = fsi.CommandLineArgs |> Array.tail
 let totalUsers = args.[0] |> int
 
-let mutable celebrity = List.Empty
-let mutable influencer = List.Empty
-let mutable commonUser = List.Empty
-let mutable allUsers = List.Empty
+//let mutable celebrity = List.Empty
+//let mutable influencer = List.Empty
+//let mutable commonUser = List.Empty
+let allUsers : List<String> = List.Empty
 let celebrityCount = Math.Max(1, percentOf(totalUsers, 0.1))
 let influencerCount = Math.Max(3, percentOf(totalUsers, 0.5))
 let commonUserCount = totalUsers - (celebrityCount + influencerCount)
@@ -59,6 +81,7 @@ let commonTweetsCount = [20; 50]
 type API = 
     | Req of (string)
     | Res of (string)
+    | Init of (int)
 
 let getResponse res = 
     match res with
@@ -79,133 +102,188 @@ let pickRandomUsers (l: List<_>) =
         list <- list @ [(pickRandom allUsers)]
     list
 
-let registerAPI uid pwd name email =
-    let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
-    getResponse((Async.RunSynchronously (server <? Req(info))))
+let getWorkerById id =
+    let actorPath = @"akka://TwitterClone/user/" + string id
+    select actorPath remoteSystem
 
-let createUsers prefix num = 
-    for i in 0 .. num do
-        let uid = prefix + i.ToString()
-        let pwd = "111"
-        let name = prefix + i.ToString()
-        let email = prefix + i.ToString() + "@ufl.edu"
-        registerAPI uid pwd name email |> ignore
-        if prefix = "celebrity" then 
-            celebrity <- celebrity @ [uid]
-        elif prefix = "influencer" then
-            influencer <- influencer @ [uid]
-        else
-            commonUser <- commonUser @ [uid]
-        allUsers <- allUsers @ [uid]
 
-let loginAPI uid =
-    let info = "{\"api\": \"Login\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{}}"
-    getResponse(Async.RunSynchronously(server <? Req(info)))
 
-let logoutAPI uid = 
-    let info = "{\"api\": \"Logout\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{}}"
-    getResponse(Async.RunSynchronously(server <? Req(info)))
+        
+let createUserActor uid = 
+    spawn remoteSystem uid
+        (fun mailbox ->
+            let rec loop() = actor {
+                let! message = mailbox.Receive()
+                let sender = mailbox.Sender()
+                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
+                let mutable userActors = Set.empty
+                match message with
+                | Req(info) -> 
+                    printfn $"{info}"
+                | _ -> ()
+                return! loop()
+            }
+            loop()
+        )
 
-let login uid =
-    let response = loginAPI uid
-    let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let msg = "\t\t" + infoJson?msg.AsString()
-    printfn $"{msg}"
 
-let followAPI uid followerid= 
-    let info = "{\"api\": \"Follow\",\"auth\": {\"id\":\""+followerid+"\",\"password\":\"111\"}, \"props\":{\"userId\": \""+uid+"\"}}"
-    getResponse((Async.RunSynchronously (server <? Req(info))))
 
-let ranFollow uid (set : Set<String>) = 
-    let mutable followerid = pickRandom allUsers
-    while followerid = uid || set.Contains(followerid) do
-        followerid <- pickRandom allUsers
-    let response = followAPI uid followerid
-    let infoJson = FSharp.Data.JsonValue.Parse(response)
-    //printfn $"{followerid} follow {uid}"
-    set.Add(followerid)
+let BossActor = 
+    spawn remoteSystem "Boss"
+        (fun mailbox ->
+            let rec loop() = actor {
+                let! message = mailbox.Receive()
+                let sender = mailbox.Sender()
+                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
+                let registerAPI uid pwd name email =
+                    let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
+                    getResponse((Async.RunSynchronously (server <? Req(info))))
+
+                let createUsers prefix num = 
+                    for i in 0 .. num do
+                        let uid = prefix + i.ToString()
+                        let pwd = "111"
+                        let name = prefix + i.ToString()
+                        let email = prefix + i.ToString() + "@ufl.edu"
+                        let actor = createUserActor uid 
+                        actor <! Req($"{uid}")
+                        let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
+                        server <! Req(info)
+                        //registerAPI uid pwd name email
+                        //printfn $"{response}"
+                        //if prefix = "celebrity" then 
+                        //    celebrity <- celebrity @ [uid]
+                        //elif prefix = "influencer" then
+                        //    influencer <- influencer @ [uid]
+                        //else
+                        //    commonUser <- commonUser @ [uid]
+                        //allUsers <- allUsers @ [uid]
+                match message with
+                | Init(info) -> 
+                    printfn "111111"
+                    createUsers "celebrity" celebrityCount
+                    createUsers "influencer" influencerCount
+                    createUsers "common" commonUserCount
+                    printfn $"all users registered successfully, celebrity: {celebrityCount}, influencer: {influencerCount}, common: {commonUserCount}"
+                    let useractor = getWorkerById "celebrity0"
+                    useractor <! Req("111")
+               
+                | _ -> ()
+                return! loop()
+            }
+            loop()
+        )
+
+BossActor <! Init(0)
+
+//let loginAPI uid =
+//    let info = "{\"api\": \"Login\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{}}"
+//    getResponse(Async.RunSynchronously(server <? Req(info)))
+
+//let logoutAPI uid = 
+//    let info = "{\"api\": \"Logout\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{}}"
+//    getResponse(Async.RunSynchronously(server <? Req(info)))
+
+//let login uid =
+//    let response = loginAPI uid
+//    let infoJson = FSharp.Data.JsonValue.Parse(response)
+//    let msg = "\t\t" + infoJson?msg.AsString()
+//    printfn $"{msg}"
+
+//let followAPI uid followerid= 
+//    let info = "{\"api\": \"Follow\",\"auth\": {\"id\":\""+followerid+"\",\"password\":\"111\"}, \"props\":{\"userId\": \""+uid+"\"}}"
+//    getResponse((Async.RunSynchronously (server <? Req(info))))
+
+//let ranFollow uid (set : Set<String>) = 
+//    let mutable followerid = pickRandom allUsers
+//    while followerid = uid || set.Contains(followerid) do
+//        followerid <- pickRandom allUsers
+//    let response = followAPI uid followerid
+//    let infoJson = FSharp.Data.JsonValue.Parse(response)
+//    //printfn $"{followerid} follow {uid}"
+//    set.Add(followerid)
     
-let ranFollowWithRange uid usertype = 
-    let r = Random()
-    let followerNum = 
-        if usertype = "celebrity" then  
-            r.Next(celeFollowerRange.[0], celeFollowerRange.[1])
-        elif usertype = "influencer" then
-            r.Next(influencerFollowerRange.[0], influencerFollowerRange.[1])
-        else 
-            r.Next(commonFollowerRnage.[0], commonFollowerRnage.[1])
-    let mutable set = Set.empty
-    for i in 1 .. followerNum do
-        set <- ranFollow uid set
-    printfn $"{usertype} {uid} has {followerNum} followers: {set}"
+//let ranFollowWithRange uid usertype = 
+//    let r = Random()
+//    let followerNum = 
+//        if usertype = "celebrity" then  
+//            r.Next(celeFollowerRange.[0], celeFollowerRange.[1])
+//        elif usertype = "influencer" then
+//            r.Next(influencerFollowerRange.[0], influencerFollowerRange.[1])
+//        else 
+//            r.Next(commonFollowerRnage.[0], commonFollowerRnage.[1])
+//    let mutable set = Set.empty
+//    for i in 1 .. followerNum do
+//        set <- ranFollow uid set
+//    printfn $"{usertype} {uid} has {followerNum} followers: {set}"
 
-let FollwerWithDistribution () = 
-    for cele in celebrity do
-        ranFollowWithRange cele "celebrity"
-    for influ in influencer do
-        ranFollowWithRange influ "influencer"
-    for common in commonUser do
-        ranFollowWithRange common "commonUser"
+//let FollwerWithDistribution () = 
+//    for cele in celebrity do
+//        ranFollowWithRange cele "celebrity"
+//    for influ in influencer do
+//        ranFollowWithRange influ "influencer"
+//    for common in commonUser do
+//        ranFollowWithRange common "commonUser"
  
  
 
-let logout uid =
-    let response = loginAPI uid
-    let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let msg = "\t\t" + infoJson?msg.AsString()
-    printfn $"{msg}"
+//let logout uid =
+//    let response = loginAPI uid
+//    let infoJson = FSharp.Data.JsonValue.Parse(response)
+//    let msg = "\t\t" + infoJson?msg.AsString()
+//    printfn $"{msg}"
     
 
-let tweetAPI uid content tagstring mentionstring =
-    let info = "{\"api\": \"Tweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"},  \"props\":{\"content\": \""+content+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
-    getResponse((Async.RunSynchronously (server <? Req(info))))
+//let tweetAPI uid content tagstring mentionstring =
+//    let info = "{\"api\": \"Tweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"},  \"props\":{\"content\": \""+content+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
+//    getResponse((Async.RunSynchronously (server <? Req(info))))
 
-let ranStr n = 
-    let r = Random()
-    let chars = Array.concat([[|'a' .. 'z'|];[|'A' .. 'Z'|];[|'0' .. '9'|]])
-    let sz = Array.length chars in
-    String(Array.init n (fun _ -> chars.[r.Next sz]))
+//let ranStr n = 
+//    let r = Random()
+//    let chars = Array.concat([[|'a' .. 'z'|];[|'A' .. 'Z'|];[|'0' .. '9'|]])
+//    let sz = Array.length chars in
+//    String(Array.init n (fun _ -> chars.[r.Next sz]))
 
-let ranMentions _ = 
-    "\"" + String.Join("\",\"", pickRandomUsers) + "\""
+//let ranMentions _ = 
+//    "\"" + String.Join("\",\"", pickRandomUsers) + "\""
 
-let ranTags _ =
-    let mutable list = List.Empty
-    let r = System.Random()
-    let nums = r.Next(10)
-    for i in 0 .. nums do
-        list <- list @ [ranStr (r.Next(5))]
-    "\"" + String.Join("\",\"", list) + "\""
+//let ranTags _ =
+//    let mutable list = List.Empty
+//    let r = System.Random()
+//    let nums = r.Next(10)
+//    for i in 0 .. nums do
+//        list <- list @ [ranStr (r.Next(5))]
+//    "\"" + String.Join("\",\"", list) + "\""
 
-let ranTweet uid = 
-    let content = ranStr(20)
-    let mention = ranMentions()
-    let tags = ranTags()
-    let response = tweetAPI uid content tags mention
-    printfn $"{uid} send tweet : {content}"
+//let ranTweet uid = 
+//    let content = ranStr(20)
+//    let mention = ranMentions()
+//    let tags = ranTags()
+//    let response = tweetAPI uid content tags mention
+//    printfn $"{uid} send tweet : {content}"
 
-let queryAllTweetsAPI uid  = 
-    let info = "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{\"operation\": \"all\"}}"
-    getResponse(Async.RunSynchronously(server <? Req(info)))
+//let queryAllTweetsAPI uid  = 
+//    let info = "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{\"operation\": \"all\"}}"
+//    getResponse(Async.RunSynchronously(server <? Req(info)))
 
-let pickRandomTweet uid =
-    let response = queryAllTweetsAPI uid
-    let infoJson = FSharp.Data.JsonValue.Parse(response)
-    let tweets = infoJson?content.AsArray() |> Array.toList
-    let ranTweet = pickRandom tweets
-    ranTweet?tweetId.AsString()
+//let pickRandomTweet uid =
+//    let response = queryAllTweetsAPI uid
+//    let infoJson = FSharp.Data.JsonValue.Parse(response)
+//    let tweets = infoJson?content.AsArray() |> Array.toList
+//    let ranTweet = pickRandom tweets
+//    ranTweet?tweetId.AsString()
 
-let retweetAPI uid tweetId tagstring mentionstring =
-    let info = "{\"api\": \"ReTweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"},  \"props\":{\"tweetId\": \""+tweetId+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
-    getResponse((Async.RunSynchronously (server <? Req(info))))
+//let retweetAPI uid tweetId tagstring mentionstring =
+//    let info = "{\"api\": \"ReTweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"},  \"props\":{\"tweetId\": \""+tweetId+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
+//    getResponse((Async.RunSynchronously (server <? Req(info))))
 
-let ranRetweet uid = 
-    let tweetId = pickRandomTweet uid
-    let mention = ranMentions()
-    let tags = ranTags()
-    let response = retweetAPI uid tweetId tags mention
-    let infoJson = FSharp.Data.JsonValue.Parse(response)
-    printfn $"{uid} retweet a tweet. Tweet ID: {tweetId}"
+//let ranRetweet uid = 
+//    let tweetId = pickRandomTweet uid
+//    let mention = ranMentions()
+//    let tags = ranTags()
+//    let response = retweetAPI uid tweetId tags mention
+//    let infoJson = FSharp.Data.JsonValue.Parse(response)
+//    printfn $"{uid} retweet a tweet. Tweet ID: {tweetId}"
 
 
 
@@ -223,11 +301,8 @@ let ranRetweet uid =
 //    logout(uid)
 
 
-createUsers "celebrity" celebrityCount
-createUsers "influencer" influencerCount
-createUsers "common" commonUserCount
-printfn $"all users registered successfully, celebrity: {celebrityCount}, influencer: {influencerCount}, common: {commonUserCount}"
-FollwerWithDistribution()
+
+//FollwerWithDistribution()
 
 
 
