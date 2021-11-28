@@ -46,12 +46,15 @@ let mutable celebrity = List.Empty
 let mutable influencer = List.Empty
 let mutable commonUser = List.Empty
 let mutable allUsers = List.Empty
-let celebrityCount = Math.Max(1, percentOf(totalUsers, 0.05))
+let celebrityCount = Math.Max(1, percentOf(totalUsers, 0.1))
 let influencerCount = Math.Max(3, percentOf(totalUsers, 0.5))
 let commonUserCount = totalUsers - (celebrityCount + influencerCount)
 let celeFollowerRange = [(0.2 * (float) totalUsers) |> int; (0.3 * (float) totalUsers) |> int]
 let influencerFollowerRange = [celeFollowerRange.[0] / 2; celeFollowerRange.[1] / 2]
 let commonFollowerRnage = [1; celeFollowerRange.[1] / 3 |> int]
+let celebrityTweetsCount = [200; 300]
+let influencerTweetsCount = [80; 150]
+let commonTweetsCount = [20; 50]
 
 type API = 
     | Req of (string)
