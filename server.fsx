@@ -57,6 +57,7 @@ type API =
 type Msg = 
     | Register of (string*string*JsonValue)// userid, pass
     | Login of (string*string)// userid, pass
+    | Logout of (string*string)// userid, pass
     | Tweet of (string*JsonValue)// userid, pass, tweet_content
     | ReTweet of (string*JsonValue)// userid, pass, tweet_id
     | Follow of (string*JsonValue)// userid, pass, user_id
@@ -87,7 +88,7 @@ type Utils() =
             content.Substring(0, content.Length - 2) + "]"
         else 
             content + "]"
-    /// Generate SHA1 or ID
+    /// Generate SHA1 for ID
     member this.getSHA1Str input = 
         let removeChar (stripChars:string) (text:string) =
             text.Split(stripChars.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) |> String.Concat
@@ -228,6 +229,26 @@ type HandlerImpl() =
                 flag <- true
         flag
 
+// Logout
+    member this.logoutImpl (userId, password, (msg: byref<_>)) =
+        let mutable flag = false
+        // check if already loged in
+        if not (authedUserSet.Contains(userId)) then
+            msg <- $"User {userId} has not logged in."
+        // find if user exist
+        if not flag && not (DB.isUserExist userId) then 
+                msg <- "User not existed. Please check the user information"
+        // query user's password, check if password matches
+        if not flag then 
+            let pwRef = DB.dbQuery $"select password from User where id = '{userId}'"
+            if password <> pwRef then
+                msg <- "Logout Failed. Please try again."
+            else
+                msg <- $"User {userId} logout Successed."
+                authedUserSet <- authedUserSet.Remove(userId)
+                flag <- true
+        flag
+
 // Tweet
     member this.processHashtag (tweetId, (hashtag: array<JsonValue>), (msg: byref<_>), (isSuccess: byref<_>)) = 
         if hashtag.Length > 0 then
@@ -315,6 +336,7 @@ type HandlerImpl() =
             if not (DB.isFollowed userId userIdToUnfollow) then 
                 msg <- $"User {userId} is not following user {userIdToUnfollow}."
                 // query user relation
+            else
                 let userRelationId = DB.dbQuery $"select id from UserRelation where follower_id = '{userId}' AND user_id = '{userIdToUnfollow}'"
                 if userRelationId = "error" then
                      msg <- $"You are not following user {userIdToUnfollow}."
@@ -394,7 +416,7 @@ let RegisterHandler (mailbox:Actor<_>) =
 
 
 let LoginHandler (mailbox:Actor<_>) =
-    printfn "LoginHandler!!"
+    // printfn "LoginHandler!!"
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
@@ -406,6 +428,27 @@ let LoginHandler (mailbox:Actor<_>) =
         match message with
         | Login(userId, password) -> 
             if Hi.loginImpl(userId, password, &msg) then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            sender <! (resJsonStr)
+        | _ -> ()
+        return! loop()
+    }
+    loop()
+
+let LogoutHandler (mailbox:Actor<_>) =
+    printfn "LogoutHandler!!"
+    let rec loop () = actor {
+        let! message = mailbox.Receive()
+        let sender = mailbox.Sender()
+        if debug then printfn $"[DEBUG]LogoutHandler receive msg: {message}"
+        // let mutable userIdSet = Set.empty
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        match message with
+        | Logout(userId, password) -> 
+            if Hi.logoutImpl(userId, password, &msg) then
                 status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
@@ -553,6 +596,9 @@ let APIHandler (mailbox:Actor<_>) =
             | "Login" ->
                 handler <- server.ActorSelection(url + "LoginHandler")
                 msg <- Login(userId, password)
+            | "Logout" -> 
+                handler <- server.ActorSelection(url + "LogoutHandler")
+                msg <- Logout(userId, password)
             | "Tweet" ->
                 handler <- server.ActorSelection(url + "TweetHandler")
                 msg <- Tweet(userId, props)
@@ -582,6 +628,7 @@ let APIHandler (mailbox:Actor<_>) =
 DB.initDb()
 spawn server "APIHandler" APIHandler
 let actorPool = [("LoginHandler", LoginHandler); 
+                 ("LogoutHandler", LogoutHandler); 
                  ("RegisterHandler", RegisterHandler); 
                  ("TweetHandler", TweetHandler); 
                  ("ReTweetHandler", ReTweetHandler); 

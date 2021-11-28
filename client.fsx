@@ -108,6 +108,19 @@ let loginUser _ =
         true
 
 
+let logoutUser _ =
+    let info = "{\"api\": \"Logout\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{}}"
+    
+    let response = getResponse(Async.RunSynchronously(server <? Req(info)))
+    let infoJson = FSharp.Data.JsonValue.Parse(response)
+    let status = infoJson?status.AsString()
+    let msg = "\t\t" + infoJson?msg.AsString()
+    printfn"\n\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    printfn $"{msg}"
+    printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    if status <> "error" then
+        uid <- ""
+        pwd <- ""
 
 
 let rec menu () =
@@ -311,11 +324,12 @@ let rec mainMenu () =
     | true, 6 ->
         mainMenu()
     | true, 7 ->
-        uid <- ""
-        pwd <- ""
-        printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        printfn "\t\tLogout Successfully!"  
-        printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        logoutUser()
+        //uid <- ""
+        //pwd <- ""
+        //printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        //printfn "\t\tLogout Successfully!"  
+        //printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     | true, 8 ->
         printfn"\n\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         printfn "\t\tGoodBye!"  
