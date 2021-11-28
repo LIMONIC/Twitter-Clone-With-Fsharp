@@ -179,28 +179,28 @@ type DB() =
 // DB queries
     /// Return a json string containing all tweets subscribed by a certain user
     member this.getSubscribedTweets userId =
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     /// Return the last 20 tweets
     member this.getLast20Tweets _ =
-        "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp desc limit 20"
+        "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp ASC limit 20"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     member this.getTweetsRelatedToTag tagName = 
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     member this.getTweetsMentionById userId = 
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     member this.getTweetsMentionByName userName = 
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
