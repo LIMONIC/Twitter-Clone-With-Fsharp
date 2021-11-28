@@ -75,7 +75,7 @@ type API =
 // spawn remoteSystem "coordinator" coordinator
 
 let tester _ = 
-    let api = "UnFollow" // "Login" "Register" "Tweet" "ReTweet" "Follow" "UnFollow" "Query"
+    let api = "Login" // "Login" "Logout" "Register" "Tweet" "ReTweet" "Follow" "UnFollow" "Query"
     let id = "Admin003"
     let password = "Admin003"
     let prop = """{}"""
