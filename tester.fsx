@@ -168,29 +168,25 @@ let userActor uid =
                     let info = "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{\"operation\": \"subscribe\"}}"
                     getResponse(Async.RunSynchronously(server <? Req(info)))
                 
-                let pickRandomTweet uid =
-                    let response = querySubTweetsAPI uid
-                    let infoJson = FSharp.Data.JsonValue.Parse(response)
-                    let tweets = infoJson?content.AsArray() |> Array.toList
-                    if not tweets.IsEmpty then 
-                        let ranTweet = pickRandom tweets
-                        ranTweet?tweetId.AsString()
-                    else ""
+                //let pickRandomTweet uid =
+                //    let response = querySubTweetsAPI uid
+                //    let infoJson = FSharp.Data.JsonValue.Parse(response)
+                //    let tweets = infoJson?content.AsArray() |> Array.toList
+                //    if not tweets.IsEmpty then 
+                //        let ranTweet = pickRandom tweets
+                //        ranTweet?tweetId.AsString()
+                //    else ""
                 
                 let retweetAPI uid tweetId tagstring mentionstring =
                     let info = "{\"api\": \"ReTweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"},  \"props\":{\"tweetId\": \""+tweetId+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
                     server <! Req(info)
                 
-                let ranRetweet () = 
+                let ranRetweet (tweetId) = 
                     let id = mailbox.Self.Path.Name
-                    let tweetId = pickRandomTweet id
-                    if tweetId = "" then 
-                        ranTweet()
-                    else 
-                        let mention = ranMentions()
-                        let tags = ranTags()
-                        retweetAPI id tweetId tags mention
-                        //printfn $"{id} retweet a tweet. Tweet ID: {tweetId}"
+                    let mention = ranMentions()
+                    let tags = ranTags()
+                    retweetAPI id tweetId tags mention
+                    //printfn $"{id} retweet a tweet. Tweet ID: {tweetId}"
 
                 match message with
                 | Req (info) -> 
@@ -210,9 +206,18 @@ let userActor uid =
                     boss <! Report(1)
                 | SimuRetweet (tweetNum) ->
                     let id = mailbox.Self.Path.Name
+                    let response = querySubTweetsAPI id
+                    let infoJson = FSharp.Data.JsonValue.Parse(response)
+                    let tweets = infoJson?content.AsArray() |> Array.toList
                     login id 
+                    printfn $"{id} login"
                     for i in 1 .. tweetNum do
-                        ranRetweet()
+                        if not tweets.IsEmpty then
+                            let ranTweet = pickRandom tweets
+                            let tweetId = ranTweet?tweetId.AsString()
+                            ranRetweet(tweetId)
+                        else 
+                            ranTweet()
                     logout id
                     printfn $"{id} finish tweet/retweet"
                     let boss = getWorkerById "Boss"
@@ -226,11 +231,12 @@ let userActor uid =
 let bossActor = 
     spawn remoteSystem ("Boss")
         (fun mailbox ->
+            let mutable onlineReport = 0
             let rec loop() = actor {
                 let! message = mailbox.Receive()
                 let sender = mailbox.Sender()
                 let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
-                let mutable onlineReport = 0
+                
                 
                 let registerAPI uid pwd name email =
                     let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
@@ -321,7 +327,7 @@ let bossActor =
         )
 
 
-bossActor <? Init(0)
+bossActor <! Init(0)
        
 
 System.Console.ReadLine() |> ignore
