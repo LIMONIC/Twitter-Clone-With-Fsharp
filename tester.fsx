@@ -93,6 +93,12 @@ let pickRandomUsers (l: List<_>) =
         list <- list @ [(pickRandom allUsers)]
     list
 
+let mutable celeFollwers = 0
+let mutable influFollwers = 0
+let mutable commonFollwers = 0
+let mutable celeTweetsNum = 0
+let mutable influTweetsNum = 0
+let mutable commonTweetsNum = 0
 
 let userActor uid = 
     spawn remoteSystem uid
@@ -125,11 +131,18 @@ let userActor uid =
                     let r = Random()
                     let followerNum = 
                         if usertype = "celebrity" then  
-                            r.Next(celeFollowerRange.[0], celeFollowerRange.[1])
+                            let temp = r.Next(celeFollowerRange.[0], celeFollowerRange.[1])
+                            celeFollwers <- celeFollwers + temp
+                            temp
                         elif usertype = "influencer" then
-                            r.Next(influencerFollowerRange.[0], influencerFollowerRange.[1])
+                            let temp = r.Next(influencerFollowerRange.[0], influencerFollowerRange.[1])
+                            influFollwers <- influFollwers + temp
+                            temp
                         else 
-                            r.Next(commonFollowerRnage.[0], commonFollowerRnage.[1])
+                            let temp = r.Next(commonFollowerRnage.[0], commonFollowerRnage.[1])
+                            commonFollwers <- commonFollwers + temp
+                            temp
+                    
                     let mutable set = Set.empty
                     for i in 1 .. followerNum do
                         set <- ranFollow uid set
@@ -209,7 +222,7 @@ let userActor uid =
                     let response = querySubTweetsAPI id
                     let infoJson = FSharp.Data.JsonValue.Parse(response)
                     let tweets = infoJson?content.AsArray() |> Array.toList
-                    login id 
+                    login id
                     printfn $"{id} login"
                     for i in 1 .. tweetNum do
                         if not tweets.IsEmpty then
@@ -232,6 +245,7 @@ let bossActor =
     spawn remoteSystem ("Boss")
         (fun mailbox ->
             let mutable onlineReport = 0
+
             let rec loop() = actor {
                 let! message = mailbox.Receive()
                 let sender = mailbox.Sender()
@@ -271,11 +285,17 @@ let bossActor =
                     let r = Random()
                     let tweetnum = 
                         if utype = "celebrity" then  
-                            r.Next(celebrityTweetsCount.[0], celebrityTweetsCount.[1])
+                            let temp = r.Next(celebrityTweetsCount.[0], celebrityTweetsCount.[1])
+                            celeTweetsNum <- celeTweetsNum + temp
+                            temp
                         elif utype = "influencer" then
-                            r.Next(influencerTweetsCount.[0], influencerTweetsCount.[1])
+                            let temp = r.Next(influencerTweetsCount.[0], influencerTweetsCount.[1])
+                            influTweetsNum <- influTweetsNum + temp
+                            temp
                         else 
-                            r.Next(commonTweetsCount.[0], commonTweetsCount.[1])
+                            let temp = r.Next(commonTweetsCount.[0], commonTweetsCount.[1])
+                            commonTweetsNum <- commonTweetsNum + temp
+                            temp
                     if utype = "commonUser" then 
                         uact <! SimuRetweet(tweetnum)
                     else
@@ -318,6 +338,15 @@ let bossActor =
                     onlineReport <- onlineReport - 1
                     if onlineReport <= 0 then
                         sw.Stop()
+                        let celeFollwersAvg = celeFollwers / celebrityCount
+                        let influFollwersAvg = influFollwers / influencerCount
+                        let commonFollwersAvg = commonFollwers / commonUserCount
+                        let celeTweetsAvg = celeTweetsNum / celebrityCount
+                        let influTweetsAvg = influTweetsNum / influencerCount
+                        let commonTweetsAvg = commonTweetsNum / commonUserCount
+                        printfn $"celebrityNum: {celebrityCount}   followers: {celeFollwers}   avg followers: {celeFollwersAvg}   tweets/retweets: {celeTweetsNum} avg tweets: {celeTweetsAvg}"  
+                        printfn $"influencerNum: {influencerCount}   followers: {influFollwers}   avg followers: {influFollwersAvg}   tweets/retweets: {influTweetsNum} avg tweets: {influTweetsAvg}"  
+                        printfn $"commonNum: {commonUserCount}   followers: {commonFollwers}   avg followers: {commonFollwersAvg}   tweets/retweets: {commonTweetsNum} avg tweets: {commonTweetsAvg}"  
                         printfn "Simulate finished in %A" sw.ElapsedMilliseconds
                         
                 | _ -> ()
