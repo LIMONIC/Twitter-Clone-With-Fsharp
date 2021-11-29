@@ -73,7 +73,7 @@ let influencerFollowerRange = [celeFollowerRange.[0] / 2; celeFollowerRange.[1] 
 let commonFollowerRnage = [1; celeFollowerRange.[1] / 3 |> int]
 let celebrityTweetsCount = [200; 300]
 let influencerTweetsCount = [80; 150]
-let commonTweetsCount = [20; 50]
+let commonTweetsCount = [10; 30]
 let offlineRange = [10; 15]
 let sw = System.Diagnostics.Stopwatch()
 
@@ -115,9 +115,9 @@ let userActor uid =
                     server <! Req(info)
                 
                 let ranFollow uid (set : Set<String>) = 
-                    let mutable followerid = pickRandom allUsers
+                    let mutable followerid = pickRandom commonUser
                     while followerid = uid || set.Contains(followerid) do
-                        followerid <- pickRandom allUsers
+                        followerid <- pickRandom commonUser
                     followAPI uid followerid
                     set.Add(followerid)
                     
@@ -161,8 +161,8 @@ let userActor uid =
                     let content = ranStr(20)
                     let mention = ranMentions()
                     let tags = ranTags()
-                    let response = tweetAPI id content tags mention
-                    printfn $"{id} send tweet : {content}"
+                    tweetAPI id content tags mention
+                    //printfn $"{id} send tweet : {content}"
 
                 let querySubTweetsAPI uid  = 
                     let info = "{\"api\": \"Query\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"}, \"props\":{\"operation\": \"subscribe\"}}"
@@ -179,7 +179,7 @@ let userActor uid =
                 
                 let retweetAPI uid tweetId tagstring mentionstring =
                     let info = "{\"api\": \"ReTweet\",\"auth\": {\"id\":\""+uid+"\",\"password\":\"111\"},  \"props\":{\"tweetId\": \""+tweetId+"\",\"hashtag\": ["+tagstring+"], \"mention\":["+mentionstring+"]}}"
-                    getResponse((Async.RunSynchronously (server <? Req(info))))
+                    server <! Req(info)
                 
                 let ranRetweet () = 
                     let id = mailbox.Self.Path.Name
@@ -189,9 +189,8 @@ let userActor uid =
                     else 
                         let mention = ranMentions()
                         let tags = ranTags()
-                        let response = retweetAPI id tweetId tags mention
-                        let infoJson = FSharp.Data.JsonValue.Parse(response)
-                        printfn $"{id} retweet a tweet. Tweet ID: {tweetId}"
+                        retweetAPI id tweetId tags mention
+                        //printfn $"{id} retweet a tweet. Tweet ID: {tweetId}"
 
                 match message with
                 | Req (info) -> 
@@ -206,6 +205,7 @@ let userActor uid =
                     for i in 1 .. tweetNum do
                         ranTweet()
                     logout id
+                    printfn $"{id} finish tweet/retweet"
                     let boss = getWorkerById "Boss"
                     boss <! Report(1)
                 | SimuRetweet (tweetNum) ->
@@ -214,6 +214,7 @@ let userActor uid =
                     for i in 1 .. tweetNum do
                         ranRetweet()
                     logout id
+                    printfn $"{id} finish tweet/retweet"
                     let boss = getWorkerById "Boss"
                     boss <! Report(1)
                 | _ -> ()
@@ -309,9 +310,10 @@ let bossActor =
                         manageTweet commonid "commonUser"
                 | Report (info) ->
                     onlineReport <- onlineReport - 1
-                    if onlineReport = 0 then
+                    if onlineReport <= 0 then
                         sw.Stop()
                         printfn "Simulate finished in %A" sw.ElapsedMilliseconds
+                        exit()
                 | _ -> ()
                 return! loop()
             }
