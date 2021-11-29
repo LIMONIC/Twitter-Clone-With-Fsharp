@@ -74,7 +74,7 @@ type Msg =
     | Push of (string*string) // userId, tweetId
     | Default of (string)
 
-let debug = true 
+let debug = false 
 let mutable authedUserMap = Map.empty
 
 type Utils() =
