@@ -313,7 +313,7 @@ let bossActor =
                     if onlineReport <= 0 then
                         sw.Stop()
                         printfn "Simulate finished in %A" sw.ElapsedMilliseconds
-                        exit()
+                        
                 | _ -> ()
                 return! loop()
             }
