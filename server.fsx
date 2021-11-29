@@ -45,28 +45,37 @@ let configuration =
 
 let server = System.create "TwitterClone" (configuration)
 let url = "akka.tcp://TwitterClone@192.168.171.128:9001/user/"
+let PushHandlerRef = server.ActorSelection(url + "PushHandler")
+
 
 // database
 let databaseFilename = "Twitter.sqlite"
 let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename  
 let connection = new SQLiteConnection(connectionString)
 type API = 
-    | Req of (string) // request
-    | Res of (string) // response
+    | Req of (string)
+    | Res of (string)
+    | Init of (int)
+    | SimuFollow of (string)
+    | SimuTweet of (int)
+    | SimuRetweet of (int)
+    | StartTweet of (int)
+    | Report of (int)
 
 type Msg = 
     | Register of (string*string*JsonValue)// userid, pass
-    | Login of (string*string)// userid, pass
+    | Login of (string*string*string)// userid, pass
     | Logout of (string*string)// userid, pass
     | Tweet of (string*JsonValue)// userid, pass, tweet_content
     | ReTweet of (string*JsonValue)// userid, pass, tweet_id
     | Follow of (string*JsonValue)// userid, pass, user_id
     | UnFollow of (string*JsonValue)// userid, pass, user_id
     | Query of (string*JsonValue)
+    | Push of (string*string) // userId, tweetId
     | Default of (string)
 
 let debug = true 
-let mutable authedUserSet = Set.empty
+let mutable authedUserMap = Map.empty
 
 type Utils() =
 // Stringified JSON handling
@@ -97,6 +106,21 @@ type Utils() =
         |> (new SHA1Managed()).ComputeHash
         |> System.BitConverter.ToString
         |> removeChar "-"
+    /// compare elements in two lists and return same elements as list
+    member this.compare2Lists oper l1 l2 = 
+        let mutable list = []  
+        l1 
+        |> List.map (fun x -> (x, List.tryFind (oper x) l2))
+        |> List.iter (function (x, None) -> () | (x, Some y) -> list <- list@[y])
+        list
+    /// Get a list from query result containing followers
+    member this.getUserList columnName (reader : SQLiteDataReader) =
+        let mutable followersList = []
+        if  reader.HasRows then
+            while reader.Read() do
+                let follower = reader.[$"{columnName}"].ToString()
+                followersList <- followersList @ [follower]
+        followersList
 let Utils = Utils()
 
 
@@ -161,36 +185,50 @@ type DB() =
 // DB queries
     /// Return a json string containing all tweets subscribed by a certain user
     member this.getSubscribedTweets userId =
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     /// Return the last 20 tweets
     member this.getLast20Tweets _ =
-        "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp desc limit 20"
+        "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp ASC limit 20"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     member this.getTweetsRelatedToTag tagName = 
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     member this.getTweetsMentionById userId = 
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
     member this.getTweetsMentionByName userName = 
-        $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp desc"
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
         |> this.dbQueryMany
         |> Utils.getTweetJsonStr
 
+    member this.getTweetsById tweetId = 
+        $"select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t where id='{tweetId}'"
+        |> this.dbQueryMany
+        |> Utils.getTweetJsonStr
+
+    member this.getFollowers userId = 
+        $"SELECT follower_id FROM UserRelation WHERE user_id='{userId}'"
+        |> this.dbQueryMany
+        |> Utils.getUserList "follower_id"
+
+    member this.getMentionedUsers tweetId = 
+        $"select DISTINCT user_id from Mention where tweet_id='{tweetId}'"
+        |> this.dbQueryMany
+        |> Utils.getUserList "user_id"
 let DB = DB()
 
 type HandlerImpl() =
     member this.isUserLoggedIn userId = 
-        authedUserSet.Contains(userId)
+        authedUserMap.ContainsKey(userId)
 
 // Register 
     member this.registerImpl (userId, password, nickName, email, (msg: byref<_>)) =
@@ -212,7 +250,7 @@ type HandlerImpl() =
     member this.loginImpl (userId, password, (msg: byref<_>)) =
         let mutable flag = false
         // check if already loged in
-        if authedUserSet.Contains(userId) then
+        if authedUserMap.ContainsKey(userId) then
             msg <- $"User {userId} has already logged in."
             flag <- true
         // find if user exist
@@ -225,7 +263,6 @@ type HandlerImpl() =
                 msg <- "Login Failed. Please try again."
             else
                 msg <- $"Login Success. You have logged in as {userId}"
-                authedUserSet <- authedUserSet.Add(userId)
                 flag <- true
         flag
 
@@ -233,7 +270,7 @@ type HandlerImpl() =
     member this.logoutImpl (userId, password, (msg: byref<_>)) =
         let mutable flag = false
         // check if already loged in
-        if not (authedUserSet.Contains(userId)) then
+        if not (authedUserMap.ContainsKey(userId)) then
             msg <- $"User {userId} has not logged in."
         // find if user exist
         if not flag && not (DB.isUserExist userId) then 
@@ -245,7 +282,7 @@ type HandlerImpl() =
                 msg <- "Logout Failed. Please try again."
             else
                 msg <- $"User {userId} logout Successed."
-                authedUserSet <- authedUserSet.Remove(userId)
+                authedUserMap <- authedUserMap.Remove(userId)
                 flag <- true
         flag
 
@@ -268,7 +305,7 @@ type HandlerImpl() =
                         msg <- "Mention are not added properly."
                         isSuccess <- false
 
-    member this.tweetAndRetweetImpl (userId, param, (hashtag: array<JsonValue>), (mention: array<JsonValue>), (msg: byref<_>), oper) = 
+    member this.tweetAndRetweetImpl ((tweetId: byref<_>), userId, param, (hashtag: array<JsonValue>), (mention: array<JsonValue>), (msg: byref<_>), oper) = 
         let mutable isSuccess = true
         let mutable text = ""
         // user must already logged in
@@ -281,7 +318,7 @@ type HandlerImpl() =
             if oper = "retweet" then msg <- "Please specify which tweet you want to retweet."
             isSuccess <- false
         else 
-            let tweetId = Utils.getSHA1Str ""
+            tweetId <- (Utils.getSHA1Str "")
             if oper = "tweet" then text <- param
             // Get original content for retweet
             if oper = "retweet" then text <- DB.dbQuery $"select content from Tweet where id = '{param}'"
@@ -426,8 +463,9 @@ let LoginHandler (mailbox:Actor<_>) =
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
         match message with
-        | Login(userId, password) -> 
+        | Login(userId, password, remoteActorAddr) -> 
             if Hi.loginImpl(userId, password, &msg) then
+                authedUserMap <- authedUserMap.Add(userId, remoteActorAddr)
                 status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
@@ -465,16 +503,29 @@ let TweetHandler (mailbox:Actor<_>) =
         let mutable status = "error"
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
-        let mutable isSuccess = true
+        
         match message with
         | Tweet(userId, props) ->
             let content = try props?content.AsString() with |_ -> ""
             let hashtag = try props?hashtag.AsArray() with |_ -> [||]
             let mention = try props?mention.AsArray() with |_ -> [||]
+            let mutable tweetId = ""
             // user must already logged in
-            if Hi.tweetAndRetweetImpl (userId, content, hashtag, mention, &msg, "tweet") then 
+            if Hi.tweetAndRetweetImpl (&tweetId, userId, content, hashtag, mention, &msg, "tweet") then 
                 status <- "success"
                 msg <- "Tweet sent."
+                // push new tweet to followers
+                // 1. get followers
+                
+                PushHandlerRef <! Push(userId, tweetId)
+                
+                // followers |> List.iteri(function i user -> )
+                // let activeUsers = authedUserMap.
+                // Utils.compare2Lists (=) followers 
+
+                // 2. match followers with active users
+                // 3. push the message to those users 
+
             resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
@@ -491,16 +542,17 @@ let ReTweetHandler (mailbox:Actor<_>) =
         let mutable status = "error"
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
-        let mutable isSuccess = true
         match message with
         | ReTweet(userId, props) -> 
             let reTweetId = try props?tweetId.AsString() with |_ -> ""
             let hashtag = try props?hashtag.AsArray() with |_ -> [||]
             let mention = try props?mention.AsArray() with |_ -> [||]
-            if Hi.tweetAndRetweetImpl (userId, reTweetId, hashtag, mention, &msg, "retweet")
+            let mutable tweetId = ""
+            if Hi.tweetAndRetweetImpl (&tweetId, userId, reTweetId, hashtag, mention, &msg, "retweet")
                 && (DB.isTweetIdExist reTweetId) then 
                 status <- "success"
                 msg <- "Retweet success."
+                PushHandlerRef <! Push(userId, tweetId)
             resJsonStr <- Utils.parseRes status msg """[]"""
             sender <! (resJsonStr)
         | _ -> ()
@@ -571,13 +623,52 @@ let QueryHandler (mailbox:Actor<_>) =
     }
     loop()
 
+let PushHandler (mailbox:Actor<_>) =
+    let rec loop () = actor {
+        let! message = mailbox.Receive()
+        if debug then printfn $"[DEBUG]PushHandler receive msg: {message}"
+        // let mutable userIdSet = Set.empty
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        match message with
+        | Push(userId, tweetId) -> 
+            let followers = DB.getFollowers userId
+            if debug then printfn $"[Debug][PushHandler]:followers: {followers}"
+            let mentionedUsers = DB.getMentionedUsers tweetId
+            if debug then printfn $"[Debug][PushHandler]:mentionedUsers: {mentionedUsers}"
+            // remove duplicated users
+            let targetUsers = Set.union (Set.ofList followers) (Set.ofList mentionedUsers) |> Set.toList
+            if debug then printfn $"[Debug][PushHandler]:targetUsers: {targetUsers}"
+            // get tweet 
+            let mutable tweet = "[]"
+            tweet <- DB.getTweetsById tweetId
+            // push tweet
+            for x in targetUsers do
+                if authedUserMap.ContainsKey(x) then
+                    let remoteActorAddr = authedUserMap.[x]
+                    let ipAddr = ((remoteActorAddr.Split '@').[1].Split ':').[0]
+                    let addr = authedUserMap.[x] + "/user/client" + ipAddr
+                    if debug then printfn $"[Debug][PushHandler]:Address: {addr}"
+                    let remoteActorRef = server.ActorSelection(authedUserMap.[x] + "/user/client" + ipAddr)
+                    msg <- "success"
+                    status <- "New Tweet!"
+                    resJsonStr <- Utils.parseRes msg status tweet
+                    if debug then printfn $"[Debug] push to: {x} \tContent: {resJsonStr}"
+                    remoteActorRef <! Res(resJsonStr)
+        | _ -> ()
+        return! loop()
+    }
+    loop()
+
 let APIHandler (mailbox:Actor<_>) =
     printfn $"[INFO]: APIHandler on."
     let mutable handler = server.ActorSelection(url + "")
     let mutable msg = Default("")
     let rec loop () = actor {
         let! (message) = mailbox.Receive()
-        printfn $"##{message}"
+        let remoteActorAddr = mailbox.Sender().Path.Address.ToString()
+        if debug then printfn $"[DEBUG]APIHandler remoteActorAddr: {remoteActorAddr}"
         let sender = mailbox.Sender()
         if debug then printfn $"[DEBUG]APIHandler receive msg: {message}"
 
@@ -595,7 +686,7 @@ let APIHandler (mailbox:Actor<_>) =
                 msg <- Register(userId, password, props)
             | "Login" ->
                 handler <- server.ActorSelection(url + "LoginHandler")
-                msg <- Login(userId, password)
+                msg <- Login(userId, password, remoteActorAddr)
             | "Logout" -> 
                 handler <- server.ActorSelection(url + "LogoutHandler")
                 msg <- Logout(userId, password)
@@ -617,7 +708,7 @@ let APIHandler (mailbox:Actor<_>) =
             | _ -> 
                 printfn $"[ERROR]API not correct! API: {operation}"
                 return! loop()
-            let res = Async.RunSynchronously(handler <? msg, 100)
+            let res = Async.RunSynchronously(handler <? msg, 10000)
             sender <! Res(res)
         | _ -> ()
         return! loop()
@@ -634,7 +725,8 @@ let actorPool = [("LoginHandler", LoginHandler);
                  ("ReTweetHandler", ReTweetHandler); 
                  ("FollowHandler", FollowHandler); 
                  ("UnFollowHandler", UnFollowHandler); 
-                 ("QueryHandler", QueryHandler)]
+                 ("QueryHandler", QueryHandler);
+                 ("PushHandler", PushHandler)]
 for (name, actor) in actorPool do
     spawn server name actor |> ignore
 connection.Open()

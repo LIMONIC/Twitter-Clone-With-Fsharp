@@ -15,46 +15,26 @@ open Akka.Remote
 open Akka.Serialization
 open System.Diagnostics
 
-//let config =
-//    ConfigurationFactory.ParseString(
-//        sprintf @"akka {
-//            actor {
-//                serializers {
-//                    hyperion = ""Akka.Serialization.HyperionSerializer, Akka.Serialization.Hyperion""
-//                }
-//                serialization-bindings {
-//                    ""System.Object"" = hyperion
-//                } 
-//                provider = ""Akka.Remote.RemoteActorRefProvider, Akka.Remote""
-//            }
-//            remote.helios.tcp {
-//                hostname = ""192.168.171.128""
-//                port = 9010
-//            }
-//        }" 
-//    )
-
-let config = 
+let config =
     ConfigurationFactory.ParseString(
-        @"akka {
+        sprintf @"akka {
             actor {
                 serializers {
                     hyperion = ""Akka.Serialization.HyperionSerializer, Akka.Serialization.Hyperion""
                 }
                 serialization-bindings {
                     ""System.Object"" = hyperion
-                }
+                } 
                 provider = ""Akka.Remote.RemoteActorRefProvider, Akka.Remote""
             }
-            remote {
-                helios.tcp {
-                    transport-protocol = tcp
-                    port = 9010
-                    hostname = ""192.168.171.128""
-                }
+            remote.helios.tcp {
+                hostname = ""192.168.171.128""
+                port = 9101
             }
         }"
-        )
+    )
+
+
 let remoteSystem = System.create "TwitterClone" config
 let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
 
@@ -90,43 +70,66 @@ let getResponse res =
     | _ -> 
         ""
 
-let pickRandom (l: List<_>) =
-    let r = System.Random()
-    l.[r.Next(l.Length)]
+//let pickRandom (l: List<_>) =
+//    let r = System.Random()
+//    l.[r.Next(l.Length)]
 
-let pickRandomUsers (l: List<_>) =
-    let mutable list = List.Empty
-    let r = System.Random()
-    let nums = r.Next(10)
-    for i in 0 .. nums do
-        list <- list @ [(pickRandom allUsers)]
-    list
+//let pickRandomUsers (l: List<_>) =
+//    let mutable list = List.Empty
+//    let r = System.Random()
+//    let nums = r.Next(10)
+//    for i in 0 .. nums do
+//        list <- list @ [(pickRandom allUsers)]
+//    list
 
-let getWorkerById id =
-    let actorPath = @"akka://TwitterClone/user/" + string id
-    select actorPath remoteSystem
+//let getWorkerById id =
+//    let actorPath = @"akka://TwitterClone/user/" + string id
+//    select actorPath remoteSystem
 
 
 
         
-let createUserActor uid = 
-    spawn remoteSystem uid
-        (fun mailbox ->
-            let rec loop() = actor {
-                let! message = mailbox.Receive()
-                let sender = mailbox.Sender()
-                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
-                let mutable userActors = Set.empty
-                match message with
-                | Req(info) -> 
-                    printfn $"{info}"
-                | _ -> ()
-                return! loop()
-            }
-            loop()
-        )
+//let createUserActor uid = 
+//    spawn remoteSystem uid
+//        (fun mailbox ->
+//            let rec loop() = actor {
+//                let! message = mailbox.Receive()
+//                let sender = mailbox.Sender()
+//                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
+//                let mutable userActors = Set.empty
+//                match message with
+//                | Req(info) -> 
+//                    printfn $"{info}"
+//                | _ -> ()
+//                return! loop()
+//            }
+//            loop()
+//        )
 
+let createUsers prefix num = 
+    for i in 0 .. num do
+        let uid = prefix + i.ToString()
+        let pwd = "111"
+        let name = prefix + i.ToString()
+        let email = prefix + i.ToString() + "@ufl.edu"
+        let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
+        printfn $"{info}"
+        let response = getResponse(Async.RunSynchronously (server <? Req(info)))
+        printfn $"{response}"
+        //registerAPI uid pwd name email
+        //printfn $"{response}"
+        //if prefix = "celebrity" then 
+        //    celebrity <- celebrity @ [uid]
+        //elif prefix = "influencer" then
+        //    influencer <- influencer @ [uid]
+        //else
+        //    commonUser <- commonUser @ [uid]
+        //allUsers <- allUsers @ [uid]
 
+//createUsers "celebrity" celebrityCount
+//createUsers "influencer" influencerCount
+//createUsers "common" commonUserCount
+//printfn $"all users registered successfully, celebrity: {celebrityCount}, influencer: {influencerCount}, common: {commonUserCount}"
 
 let BossActor = 
     spawn remoteSystem "Boss"
@@ -134,39 +137,29 @@ let BossActor =
             let rec loop() = actor {
                 let! message = mailbox.Receive()
                 let sender = mailbox.Sender()
-                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
-                let registerAPI uid pwd name email =
-                    let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
-                    getResponse((Async.RunSynchronously (server <? Req(info))))
+                //let registerAPI uid pwd name email =
+                //    let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
+                //    getResponse((Async.RunSynchronously (server <? Req(info))))
 
-                let createUsers prefix num = 
-                    for i in 0 .. num do
+                match message with
+                | Init(info) -> 
+                    printfn "111111"
+                    //createUsers "celebrity" celebrityCount
+                    let prefix = "celebrity"
+                    for i in 0 .. celebrityCount do
                         let uid = prefix + i.ToString()
                         let pwd = "111"
                         let name = prefix + i.ToString()
                         let email = prefix + i.ToString() + "@ufl.edu"
-                        let actor = createUserActor uid 
-                        actor <! Req($"{uid}")
                         let info = "{\"api\": \"Register\",\"auth\": {\"id\":\""+uid+"\",\"password\":\""+pwd+"\"}, \"props\":{\"nickName\": \""+name+"\",\"email\": \""+email+"\"}}"
+                        printfn $"{info}"
                         server <! Req(info)
-                        //registerAPI uid pwd name email
-                        //printfn $"{response}"
-                        //if prefix = "celebrity" then 
-                        //    celebrity <- celebrity @ [uid]
-                        //elif prefix = "influencer" then
-                        //    influencer <- influencer @ [uid]
-                        //else
-                        //    commonUser <- commonUser @ [uid]
-                        //allUsers <- allUsers @ [uid]
-                match message with
-                | Init(info) -> 
-                    printfn "111111"
-                    createUsers "celebrity" celebrityCount
-                    createUsers "influencer" influencerCount
-                    createUsers "common" commonUserCount
-                    printfn $"all users registered successfully, celebrity: {celebrityCount}, influencer: {influencerCount}, common: {commonUserCount}"
-                    let useractor = getWorkerById "celebrity0"
-                    useractor <! Req("111")
+                        printfn $"111111"
+                    
+                    //createUsers "influencer" influencerCount
+                    //createUsers "common" commonUserCount
+                    //printfn $"all users registered successfully, celebrity: {celebrityCount}, influencer: {influencerCount}, common: {commonUserCount}"
+                    
                
                 | _ -> ()
                 return! loop()
@@ -174,6 +167,36 @@ let BossActor =
             loop()
         )
 
+let clientActor = 
+    spawn remoteSystem "test"
+        (fun mailbox ->
+            let rec loop() = actor {
+                let! message = mailbox.Receive()
+                let sender = mailbox.Sender()
+                let server = remoteSystem.ActorSelection (sprintf "akka.tcp://TwitterClone@192.168.171.128:9001/user/APIHandler")
+                match message with
+                | Req(info) -> 
+                    printf $"{info}"
+                    let response = getResponse(Async.RunSynchronously(server <? Req(info)))
+                    sender <! Res(response)
+                //| Res(info) ->
+                //    if live then 
+                //        let infoJson = FSharp.Data.JsonValue.Parse(info)
+                //        let msg = infoJson?msg.AsString()
+                //        printfn"\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+                //        let tweets = infoJson?content.AsArray()
+                //        for record in tweets do
+                //            printfn $"Tweet ID: {record?tweetId.AsString()}"
+                //            printfn $"User ID: {record?userId.AsString()}"
+                //            printfn $"Time: {record?timestamp.AsString()}"
+                //            printfn $"Content: \n{record?text.AsString()}"
+                //            printfn"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"  
+                | _ -> ()
+                return! loop()
+            }
+            loop()
+        )
+clientActor <! Req("test111")
 BossActor <! Init(0)
 
 //let loginAPI uid =
