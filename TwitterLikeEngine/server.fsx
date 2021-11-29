@@ -52,6 +52,13 @@ let PushHandlerRef = server.ActorSelection(url + "PushHandler")
 let databaseFilename = "Twitter.sqlite"
 let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename  
 let connection = new SQLiteConnection(connectionString)
+
+// Debug printout swithces
+let debug = false
+let dbDebug = false
+let testInfo = true
+
+// Message types
 type API = 
     | Req of (string) // request
     | Res of (string) // response
@@ -68,7 +75,7 @@ type Msg =
     | Push of (string*string) // userId, tweetId
     | Default of (string)
 
-let debug = true 
+// Active user map <userId, userAddress>
 let mutable authedUserMap = Map.empty
 
 type Utils() =
@@ -125,7 +132,7 @@ type DB() =
         let dbPath = @".\" + databaseFilename;
         // if DB file is not exist, initialize DB
         if not(File.Exists(dbPath)) then
-            printfn $"[Info]DB doesn't exist {dbPath}. Initialize database..." 
+            if dbDebug then printfn $"[Info]DB doesn't exist {dbPath}. Initialize database..." 
             let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename
             // 0. Create Database
             SQLiteConnection.CreateFile(databaseFilename)
@@ -147,7 +154,7 @@ type DB() =
     member this.dbQuery queryStr = 
         let selectCommand = new SQLiteCommand(queryStr, connection)
         try 
-            printfn $"dbQuery {selectCommand.ExecuteScalar().ToString()}"
+            if dbDebug then printfn $"dbQuery {selectCommand.ExecuteScalar().ToString()}"
             selectCommand.ExecuteScalar().ToString()
         with | _ -> "error"
 
@@ -163,17 +170,17 @@ type DB() =
 // DB record validation 
     member this.isUserExist userId =
         let res = this.dbQuery $"select id from User where id = '{userId}'"
-        if debug then printfn $"-[DEBUG][isUserExist] res = {res}"
+        if dbDebug then printfn $"-[DEBUG][isUserExist] res = {res}"
         not (res = "error")
         
     member this.isTweetIdExist tweetId = 
         let res = this.dbQuery $"select id from Tweet where id = '{tweetId}'"
-        if debug then printfn $"-[DEBUG][isValidTweetId] res = {res}"
+        if dbDebug then printfn $"-[DEBUG][isValidTweetId] res = {res}"
         not (res = "error")
 
     member this.isFollowed userId userIdTofollow = 
         let res = this.dbQuery $"select id from UserRelation where follower_id = '{userId}' and user_id='{userIdTofollow}'"
-        if debug then printfn $"-[DEBUG][isFollowed] res = {res}"
+        if dbDebug then printfn $"-[DEBUG][isFollowed] res = {res}"
         not (res = "error")
 
 // DB queries
@@ -428,7 +435,6 @@ let RegisterHandler (mailbox:Actor<_>) =
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
         if debug then printfn $"[DEBUG]RegisterHandler receive msg: {message}"
-        // let mutable userIdSet = Set.empty
         let mutable status = "error"
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
@@ -447,7 +453,6 @@ let RegisterHandler (mailbox:Actor<_>) =
 
 
 let LoginHandler (mailbox:Actor<_>) =
-    // printfn "LoginHandler!!"
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
@@ -469,7 +474,6 @@ let LoginHandler (mailbox:Actor<_>) =
     loop()
 
 let LogoutHandler (mailbox:Actor<_>) =
-    printfn "LogoutHandler!!"
     let rec loop () = actor {
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
@@ -628,9 +632,7 @@ let PushHandler (mailbox:Actor<_>) =
         match message with
         | Push(userId, tweetId) -> 
             let followers = DB.getFollowers userId
-            if debug then printfn $"[Debug][PushHandler]:followers: {followers}"
             let mentionedUsers = DB.getMentionedUsers tweetId
-            if debug then printfn $"[Debug][PushHandler]:mentionedUsers: {mentionedUsers}"
             // remove duplicated users
             let targetUsers = Set.union (Set.ofList followers) (Set.ofList mentionedUsers) |> Set.toList
             if debug then printfn $"[Debug][PushHandler]:targetUsers: {targetUsers}"
@@ -643,7 +645,6 @@ let PushHandler (mailbox:Actor<_>) =
                     let remoteActorAddr = authedUserMap.[x]
                     let ipAddr = ((remoteActorAddr.Split '@').[1].Split ':').[0]
                     let addr = authedUserMap.[x] + "/user/client" + ipAddr
-                    if debug then printfn $"[Debug][PushHandler]:Address: {addr}"
                     let remoteActorRef = server.ActorSelection(authedUserMap.[x] + "/user/client" + ipAddr)
                     msg <- "success"
                     status <- "New Tweet!"
@@ -662,7 +663,6 @@ let APIHandler (mailbox:Actor<_>) =
     let rec loop () = actor {
         let! (message) = mailbox.Receive()
         let remoteActorAddr = mailbox.Sender().Path.Address.ToString()
-        if debug then printfn $"[DEBUG]APIHandler remoteActorAddr: {remoteActorAddr}"
         let sender = mailbox.Sender()
         if debug then printfn $"[DEBUG]APIHandler receive msg: {message}"
 
@@ -673,6 +673,7 @@ let APIHandler (mailbox:Actor<_>) =
             let userId = infoJson?auth?id.AsString()
             let password = infoJson?auth?password.AsString()
             let props = infoJson?props
+            if testInfo then printfn $"[TEST]Operation - {operation}\tprops - {props}"
             if (operation = "" || userId = "" || password = "") then return! loop()
             match operation with
             | "Register" ->
