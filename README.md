@@ -1,4 +1,4 @@
-# **Project Files Overview:**
+# **Twitter Clone with F#**
 
 ## **Files:**
 
@@ -6,7 +6,7 @@
 
 **server.fsx**: Contains all the logic related to user authentication, tweet and retweet processing, hashtag and mention handling, user follow and unfollow handling, DB operation etc.
 
-**simulate**.fsx: Contains all the logic related to register users, periods of live connection and disconnection for users, follow other users, increase the number of tweets, make some of these messages re-tweets.
+**simulate.fsx**: Contains all the logic related to register users, periods of live connection and disconnection for users, follow other users, increase the number of tweets, make some of these messages re-tweets.
 
 **Twitter.sqlite**: database file.
 
@@ -71,7 +71,7 @@ Fig 1. System architecture of the twitter clone system.
 
 Offline users : 15.0% = 45 (Chosen randomly between 10% - 20% of total users)
 
-Total time taken :  534.002
+Total time taken :  534.002 s
 
 ### **For 500 Users**
 
@@ -84,7 +84,7 @@ Total time taken :  534.002
 
 Offline users : 18.0% = 90 (Chosen randomly between 10% - 20% of total users)
 
-Total time taken :  700.071
+Total time taken :  700.071 s
 
 ### **For 1000 Users**
 
@@ -97,7 +97,7 @@ Total time taken :  700.071
 
 Offline users : 17.0% = 170 (Chosen randomly between 10% - 20% of total users)
 
-Total time taken :  1438.099
+Total time taken :  1438.099 s
 
 ### **For 5000 Users**
 
@@ -110,7 +110,7 @@ Total time taken :  1438.099
 
 Offline users : 15.0% = 750 (Chosen randomly between 10% - 20% of total users)
 
-Total time taken :  8328.574
+Total time taken :  8328.574 s
 
 ### **For 10000 Users**
 
@@ -123,4 +123,4 @@ Total time taken :  8328.574
 
 Offline users : 18.0% = 1800 (Chosen randomly between 10% - 20% of total users)
 
-Total time taken :  22171.157
+Total time taken :  22171.157 s
