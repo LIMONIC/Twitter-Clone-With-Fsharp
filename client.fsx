@@ -338,37 +338,32 @@ let tweetsPage() =
 
 let rec mainMenu () =
     printfn "\n\n[----------- MAIN SCREEN -----------]"
-    printfn "9. Tweets Page\n1. Tweet\n2. ReTweet\n3. Follow\n4. Unfollow\n5. Query Tweets\n6. Refresh\n7. Logout\n8. Exit"
+    printfn "1. Tweets Page\n2. Tweet\n3. ReTweet\n4. Follow\n5. Unfollow\n6. Query Tweets\n7. Refresh\n8. Logout\n9. Exit"
     printf "Enter your choice: "
     match Int32.TryParse (Console.ReadLine()) with
-    | true, 9 -> 
+    | true, 1 -> 
         tweetsPage()
         mainMenu()
-    | true, 1 -> 
+    | true, 2 -> 
         tweet()
         mainMenu()
-    | true, 2 -> 
+    | true, 3 -> 
         retweet()
         mainMenu()
-    | true, 3 ->
+    | true, 4 ->
         follow()
         mainMenu()
-    | true, 4 ->
+    | true, 5 ->
         unfollow()
         mainMenu()
-    | true, 5 ->
+    | true, 6 ->
         showTweets() |> ignore
         mainMenu()
-    | true, 6 ->
-        mainMenu()
     | true, 7 ->
-        logoutUser()
-        //uid <- ""
-        //pwd <- ""
-        //printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        //printfn "\t\tLogout Successfully!"  
-        //printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        mainMenu()
     | true, 8 ->
+        logoutUser()
+    | true, 9 ->
         printfn"\n\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
         printfn "\t\tGoodBye!"  
         printfn"\t\t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
