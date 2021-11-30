@@ -1,559 +1,126 @@
-# Twitter-Clone-With-Fsharp
+# **Project Files Overview:**
 
-### Json
+## **Files:**
 
-```sql
-// Tweet Req:
-{
-    "api":"",
-    "auth":{
-        "id":"t10000",
-        "password":"1985"
-    },
-    "props":{
-        "content":"test001",
-        "hashtag": ["tag1", "tag2"],
-				"mention": ["mention1", "mention2"]
-    }
-}
+**client.fsx**: Contains client and front-end logic where each client corresponds to a single user and performs all the functions for a user. Require IP address and port.
 
-// ReTweet Req:
-{
-    "api":"",
-    "auth":{
-        "id":"t10000",
-        "password":"1985"
-    },
-    "props":{
-        "tweetId":"test001",
-        //"hashtag":"test001@test.com",
-				//"mention":""
-    }
-}
+**server.fsx**: Contains all the logic related to user authentication, tweet and retweet processing, hashtag and mention handling, user follow and unfollow handling, DB operation etc.
 
-// follow:
-{
-    "api":"",
-    "auth":{
-        "id":"t10000",
-        "password":"1985"
-    },
-    "props":{
-        "userId":"test001"
-    }
-}
+**simulate**.fsx: Contains all the logic related to register users, periods of live connection and disconnection for users, follow other users, increase the number of tweets, make some of these messages re-tweets.
 
-// unfollow:
-{
-    "api":"",
-    "auth":{
-        "id":"t10000",
-        "password":"1985"
-    },
-    "props":{
-        "userId":"test001"
-    }
-}
+**Twitter.sqlite**: database file.
 
-// query
-{
-    "api":"",
-    "auth":{
-        "id":"t10000",
-        "password":"1985"
-    },
-    "props":{
-        "operation":"" // subscribe || tag || mention || all
-    }
-}
+**README.pdf**
+
+## **How to Run:**
+
+```bash
+dotnet fsi  server.fsx
+dotnet fsi  client.fsx <IP_Address> <Port>
 ```
 
+- IP_Address: input the client’s ip address
+- Port: input the client’s port
 
+### For simulation:
 
-
-### Server-Client JSON
-
-Register
-
-```json
-// Success
-------------Request-------------
-{
-  "api": "Register",
-  "auth": {
-    "id": "Admin006",
-    "password": "Admin006"
-  },
-  "props": {
-    "email": "test6@test.com",
-    "nickName": "hannah"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Registration Success. Your user id is Admin006.",
-  "content": []
-}
---------------------------------
-
-// User exist
-------------Response------------
-{
-  "status": "error",
-  "msg": "UserId has already been used. Please choose a new one.",
-  "content": []
-}
---------------------------------
+```bash
+dotnet fsi tester.fsx
 ```
 
-Login
+## System Design:
 
-```json
-// success
-------------Request-------------
-{
-  "api": "Login",
-  "auth": {
-    "id": "Admin006",
-    "password": "Admin006"
-  },
-  "props": {
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Login Success. You have logged in as Admin006",
-  "content": []
-}
---------------------------------
-// wrong userid
-------------Request-------------
-{
-  "api": "Login",
-  "auth": {
-    "id": "Admin007",
-    "password": "Admin006"
-  },
-  "props": {
-  }
-}
-------------Response------------
-{
-  "status": "error",
-  "msg": "User not existed. Please check the user information",
-  "content": []
-}
---------------------------------
-// duplicated login
-------------Request-------------
-{
-  "api": "Login",
-  "auth": {
-    "id": "Admin006",
-    "password": "Admin00666"
-  },
-  "props": {
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "User Admin006 has already logged in.",      
-  "content": []
-}
---------------------------------
-// wrong pass 
-------------Request-------------
-{
-  "api": "Login",
-  "auth": {
-    "id": "Admin005",
-    "password": "Admin00666"
-  },
-  "props": {
-  }
-}
-------------Response------------
-{
-  "status": "error",
-  "msg": "Login Failed. Please try again.",
-  "content": []
-}
---------------------------------
-```
+The system is designed in a form of client-end and back-end separation. The two ends communicates to each other with a lightweight data-interchange format, JSON, encapsulated in two types for sending requests and receiving responses. 
 
-Tweet
+The system is divided based on the functions by making each actor focus on one service. This improves the scalability and maintainability of the system.
 
-- `hashtag` `mention` are optional
-- multiple hashtags and/or mentions are allowed
+A lightweight relational database is employed for data OCRD. The structure of the database is optimized for the system functionalities.  
 
-```json
-------------Request-------------
-{
-  "api": "Tweet",
-  "auth": {
-    "id": "Admin006",
-    "password": "Admin006"
-  },
-  "props": {
-    "content": "Suave is a simple web development F#",
-    "hashtag": [
-      "Suave",
-      "test7"
-    ],
-    "mention": [
-      "Admin001",
-      "Admin002"
-    ]
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Tweet sent.",
-  "content": []
-}
---------------------------------
-```
+![Fig 1. System architecture of the twitter clone system.](https://github.com/LIMONIC/Twitter-Clone-With-Fsharp/blob/main/img/image.jpg)
 
-Retweet
+Fig 1. System architecture of the twitter clone system.
 
-- `hashtag` `mention` are optional
-- multiple hashtags and/or mentions are allowed
+## **Functionalities implemented:**
 
-```json
-------------Request-------------
-{
-  "api": "ReTweet",
-  "auth": {
-    "id": "Admin004",
-    "password": "Admin004"
-  },
-  "props": {
-    "tweetId": "0F135E30DCF16D471B8219B55431B61F9321F884"
-  },
-  "hashtag": [
-    "Suave",
-    "test8"
-  ],
-  "mention": [
-    "Admin003",
-    "Admin004"
-  ]
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Retweet success.",
-  "content": []
-}
---------------------------------
-```
+### System
 
-Follow
+- **Register**: Users can register themselves to Twitter
+- **User authentication**: Users can login to or logout from the Twitter (live connection / disconnection) with username and password
+- **Get tweets in live**: Users can open the Tweets Page to receive tweets lively. This means users who have logged in the system will receive tweets simultaneously when the user they are following make tweets.
+- **Follow and unfollow other users**: Users can follow and unfollow another user already registered and pop out a warning if the user doesn’t exist.
+- **Send Tweet**: Users can send tweets with / without multiple hashtags and / or multiple mentions.
+- **Retweet**: Users can retweet the tweets posted by other users according to the tweet ID.
+- **Query tweets**: Users can query to see tweets posted by the users they followed, and can also search for related tweets based on mention and tag.
 
-```json
-// success
-------------Request-------------
-{
-  "api": "Follow",
-  "auth": {
-    "id": "Admin004",
-    "password": "Admin004"
-  },
-  "props": {
-    "userId": "Admin001"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Admin004 successfully followed Admin001.",
-  "content": []
-}
---------------------------------
-// user to follow not exist
-------------Request-------------
-{
-  "api": "Follow",
-  "auth": {
-    "id": "Admin004",
-    "password": "Admin004"
-  },
-  "props": {
-    "userId": "Admin0011"
-  }
-}
-------------Response------------
-{
-  "status": "error",
-  "msg": "User Admin0011 not exist. Please check the user information",
-  "content": []
-}
---------------------------------
-// already followed
-------------Request-------------
-{
-  "api": "Follow",
-  "auth": {
-    "id": "Admin004",
-    "password": "Admin004"
-  },
-  "props": {
-    "userId": "Admin003"
-  }
-}
-------------Response------------
-{
-  "status": "error",
-  "msg": "User Admin004 already followed user Admin003.",      
-  "content": []
-}
---------------------------------
-```
+### Test
 
-unfollow
+- Implement a tester to test the above functions.
+- The followers are distributed using the Zipf distribution. There are 3 types of user: celebrity, influencer and common user. The celebrity’s followers number will be twice the time of the influencer’s and will be the third time of the common user’s.
+- celebrities and influencers will tweet many msg and common users will retweet some of them from the user they followed.
+- Simulate periods of live connection and disconnection for users.
 
-```json
+## **Simulation Results**
 
-// success
-------------Request-------------
-{
-  "api": "UnFollow",
-  "auth": {
-    "id": "Admin004",
-    "password": "Admin004"
-  },
-  "props": {
-    "userId": "Admin001"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Admin004 successfully unfollowed Admin001.",
-  "content": []
-}
---------------------------------
-// not following
-------------Request-------------
-{
-  "api": "UnFollow",
-  "auth": {
-    "id": "Admin004",
-    "password": "Admin004"
-  },
-  "props": {
-    "userId": "Admin003"
-  }
-}
-------------Response------------
-{
-  "status": "error",
-  "msg": "User Admin004 is not following user Admin003.",      
-  "content": []
-}
---------------------------------
-// user not exist
-------------Request-------------
-{
-  "api": "UnFollow",
-  "auth": {
-    "id": "Admin004",
-    "password": "Admin004"
-  },
-  "props": {
-    "userId": "Admin009"
-  }
-}
-------------Response------------
-{
-  "status": "error",
-  "msg": "User Admin009 not exist. Please check the user information",
-  "content": []
-}
---------------------------------
-```
+### **For 300 Users**
+| For 300 Users | Users | Followers | Avg. Followers | Tweets & Retweets | Avg. Tweets |
+| ------------- | ----- | --------- | -------------- | ----------------- | ----------- |
+| celebrity     | 1     | 142       | 479            | 479               | 479         |
+| influencer    | 3     | 201       | 405            | 135               | 135         |
+| common user   | 296   | 10360     | 4992           | 16                | 16          |
+| Total         | 300   |           |                |                   |             |
 
-Query
+Offline users : 15.0% = 45 (Chosen randomly between 10% - 20% of total users)
 
-```json
-// All
-------------Request-------------
-{
-  "api": "Query",
-  "auth": {
-    "id": "Admin002",
-    "password": "Admin002"
-  },
-  "props": {
-    "operation": "all"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "The latest 20 tweets:",
-  "content": [
-    {
-      "text": "Nice weather balabala!",
-      "tweetId": "A813A096C85E37AA6890073A02576503ECA5015C",   
-      "userId": "Admin004",
-      "timestamp": "2021-11-22T17:18:37"
-    },
-    {
-      "text": "Suave is a simple web development F#",
-      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
-      "userId": "Admin006",
-      "timestamp": "2021-11-22T17:14:10"
-    },
-    {
-      "text": "Nice weather bala...
---------------------------------
-// subscribe - no result
-------------Request-------------
-{
-  "api": "Query",
-  "auth": {
-    "id": "Admin002",
-    "password": "Admin002"
-  },
-  "props": {
-    "operation": "subscribe"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "user Admin002's subscribed tweets:",
-  "content": []
-}
---------------------------------
-// subscribe
-------------Request-------------
-{
-  "api": "Query",
-  "auth": {
-    "id": "Admin002",
-    "password": "Admin002"
-  },
-  "props": {
-    "operation": "subscribe"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "user Admin002's subscribed tweets:",
-  "content": [
-    {
-      "text": "Nice weather balabala!",
-      "tweetId": "A813A096C85E37AA6890073A02576503ECA5015C",   
-      "userId": "Admin004",
-      "timestamp": "2021-11-22T17:18:37"
-    },
-    {
-      "text": "Suave is a simple web development F#",
-      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
-      "userId": "Admin006",
-      "timestamp": "2021-11-22T17:14:10"
-    }
-  ]
-}
---------------------------------
-// tag
-------------Request-------------
-{
-  "api": "Query",
-  "auth": {
-    "id": "Admin002",
-    "password": "Admin002"
-  },
-  "props": {
-    "operation": "tag",
-    "tagId": "Suave"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Tweets related to tag Suave:",
-  "content": [
-    {
-      "text": "Suave is a simple web development F#",
-      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
-      "userId": "Admin006",
-      "timestamp": "2021-11-22T17:14:10"
-    }
-  ]
-}
---------------------------------
-// mention-user id
-------------Request-------------
-{
-  "api": "Query",
-  "auth": {
-    "id": "Admin002",
-    "password": "Admin002"
-  },
-  "props": {
-    "operation": "mention",
-    "mention": "Admin001"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Tweets related to user Admin001:",
-  "content": [
-    {
-      "text": "Suave is a simple web development F#",
-      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
-      "userId": "Admin006",
-      "timestamp": "2021-11-22T17:14:10"
-    },
-    {
-      "text": "Nice weather balabala!",
-      "tweetId": "0F135E30DCF16D471B8219B55431B61F9321F884",   
-      "userId": "Admin005",
-      "timestamp": "2021-11-21T23:38:14"
-    },
-    {
-      "text": "Nice w...
---------------------------------
-// mention-nick name
-------------Request-------------
-{
-  "api": "Query",
-  "auth": {
-    "id": "Admin002",
-    "password": "Admin002"
-  },
-  "props": {
-    "operation": "mention",
-    "mention": "Bob"
-  }
-}
-------------Response------------
-{
-  "status": "success",
-  "msg": "Tweets related to user Bob:",
-  "content": [
-    {
-      "text": "Suave is a simple web development F#",
-      "tweetId": "B85C72BE1FB410E6CDF9A806B3C4CA6FAEE7D5DD",   
-      "userId": "Admin006",
-      "timestamp": "2021-11-22T17:14:10"
-    },
-    {
-      "text": "Nice weather balabala!",
-      "tweetId": "0F135E30DCF16D471B8219B55431B61F9321F884",   
-      "userId": "Admin005",
-      "timestamp": "2021-11-21T23:38:14"
-    }
-  ]
-}
---------------------------------
-```
+Total time taken :  534.002
+
+### **For 500 Users**
+
+| For 500 Users | Users | Followers | Avg. Followers | Tweets & Retweets | Avg. Tweets |
+| ------------- | ----- | --------- | -------------- | ----------------- | ----------- |
+| celebrity     | 1     | 284       | 284            | 517               | 517         |
+| influencer    | 3     | 240       | 80             | 540               | 180         |
+| common user   | 496   | 12335     | 24             | 8614              | 17          |
+| Total         | 500   |           |                |                   |             |
+
+Offline users : 18.0% = 90 (Chosen randomly between 10% - 20% of total users)
+
+Total time taken :  700.071
+
+### **For 1000 Users**
+
+| For 1000 Users | Users | Followers | Avg. Followers | Tweets & Retweets | Avg. Tweets |
+| -------------- | ----- | --------- | -------------- | ----------------- | ----------- |
+| celebrity      | 1     | 503       | 503            | 547               | 547         |
+| influencer     | 5     | 1120      | 224            | 566               | 113         |
+| common user    | 994   | 79520     | 80             | 16792             | 16          |
+| Total          | 1000  |           |                |                   |             |
+
+Offline users : 17.0% = 170 (Chosen randomly between 10% - 20% of total users)
+
+Total time taken :  1438.099
+
+### **For 5000 Users**
+
+| For 5000 Users | Users | Followers | Avg. Followers | Tweets & Retweets | Avg. Tweets |
+| -------------- | ----- | --------- | -------------- | ----------------- | ----------- |
+| celebrity      | 5     | 7423      | 1484           | 1459              | 291         |
+| influencer     | 25    | 16488     | 659            | 2914              | 116         |
+| common user    | 4970  | 1231347   | 247            | 99400             | 20          |
+| Total          | 5000  |           |                |                   |             |
+
+Offline users : 15.0% = 750 (Chosen randomly between 10% - 20% of total users)
+
+Total time taken :  8328.574
+
+### **For 10000 Users**
+
+| For 10000 Users | Users | Followers | Avg. Followers | Tweets & Retweets | Avg. Tweets |
+| --------------- | ----- | --------- | -------------- | ----------------- | ----------- |
+| celebrity       | 10    | 27854     | 2785           | 2682              | 268         |
+| influencer      | 50    | 64101     | 1282           | 5760              | 115         |
+| common user     | 9940  | 5001756   | 503            | 169433            | 17          |
+| Total           | 10000 |           |                |                   |             |
+
+Offline users : 18.0% = 1800 (Chosen randomly between 10% - 20% of total users)
+
+Total time taken :  22171.157
