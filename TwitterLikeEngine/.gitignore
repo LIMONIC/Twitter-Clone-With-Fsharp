@@ -370,7 +370,7 @@ Debug
 *.user
 obj
 bin
-demo
+/demo
 /build/
 *.exe
 !.paket/paket.bootstrapper.exe
