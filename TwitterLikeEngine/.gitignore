@@ -370,6 +370,7 @@ Debug
 *.user
 obj
 bin
+demo
 /build/
 *.exe
 !.paket/paket.bootstrapper.exe
@@ -378,4 +379,3 @@ Playground
 .vscode
 .fake
 SQLiteTest
-demo

@@ -10,7 +10,7 @@ bin
 *.exe
 !.paket/paket.bootstrapper.exe
 .ionide/
-Playground
+./PlayGround
 .vscode
 .fake
-SQLiteTest
+./SQLiteTest
