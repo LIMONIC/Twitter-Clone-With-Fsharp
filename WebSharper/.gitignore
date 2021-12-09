@@ -1,0 +1,17 @@
+### fsharp ###
+lib/debug
+lib/release
+Debug
+*.suo
+*.user
+obj
+bin
+/build/
+*.exe
+!.paket/paket.bootstrapper.exe
+.ionide/
+PlayGround
+SQLiteTest
+.vscode
+.fake
+
