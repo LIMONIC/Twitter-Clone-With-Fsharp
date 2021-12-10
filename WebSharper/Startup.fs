@@ -9,6 +9,7 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open WebSharper.AspNetCore
+open Server
 
 type Startup() =
 

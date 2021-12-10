@@ -23,4 +23,34 @@ module Client =
                 |> Async.StartImmediate
             )
             .Reversed(rvReversed.View)
+            .OnInitDB(fun e ->
+                async {
+                    Server.DoDBInit ()
+                }
+                |> Async.StartImmediate
+            )
+            .Result("Sccess!")
             .Doc()
+    // let Test () = 
+    //     Templates.MainTemplate.MainForm()
+    //         .OnTest(fun e -> Server.DoTest "TEST")
+    //         .Result("Sccess!")
+    //         .Doc()         
+    let Db () = 
+        Templates.MainTemplate.MainForm()
+            .OnInitDB(fun e ->
+                async {
+                    Server.DoDBInit ()
+                }
+                |> Async.StartImmediate
+            )
+            .Result("Sccess!")
+            .Doc()
+        // Templates.MainTemplate.MainForm()
+        //     .OnInitDB(fun e ->
+        //         async {
+        //             Server.DoDBInit()
+        //         }
+        //         |> Async.StartImmediate
+        //     )
+        //     .Doc()
