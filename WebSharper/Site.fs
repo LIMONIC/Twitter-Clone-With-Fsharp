@@ -4,13 +4,21 @@ open WebSharper
 open WebSharper.Sitelets
 open WebSharper.UI
 open WebSharper.UI.Server
+open WebSharper.JavaScript
+open FSharp.Data
+open FSharp.Data.JsonExtensions
 
 type EndPoint =
     | [<EndPoint "/">] Home
     | [<EndPoint "/about">] About
+    | [<EndPoint "/Twitter">] Twitter
+    | [<EndPoint "/welcome">] Welcome
+    | [<EndPoint "GET /Login">] Login of userId: int
+    // and userId = 001
+    // and pass = "1234"
 
 module Templating =
-    open WebSharper.UI.Html
+    open WebSharper.UI.Html    
 
     // Compute a menubar where the menu item for the given endpoint is active
     let MenuBar (ctx: Context<EndPoint>) endpoint : Doc list =
@@ -20,6 +28,7 @@ module Templating =
              ]
         [
             "Home" => EndPoint.Home
+            "Twitter" => EndPoint.Twitter
             "About" => EndPoint.About
         ]
 
@@ -28,6 +37,14 @@ module Templating =
             Templates.MainTemplate()
                 .Title(title)
                 .MenuBar(MenuBar ctx action)
+                .Body(body)
+                .Doc()
+        )
+        
+    let Welcome ctx action (title: string) (body: Doc list) =
+        Content.Page(
+            Templates.LoginTemplate()
+                .Title(title)
                 .Body(body)
                 .Doc()
         )
@@ -49,10 +66,59 @@ module Site =
             p [] [text "This is a template WebSharper client-server application."]
         ]
 
+    let Twitter ctx =
+        // let userId = Var.Create ""
+        // let pass = Var.Create ""
+        // let myInput = Doc.Input [ attr.name "my-input" ] userId
+        let userLoginDoc = 
+            div [] [
+                h1 [] [ text "User Login"]
+                form [] [
+                    input [attr.name "userId"] []
+                    button [on.click (fun el ev -> JS.Alert "userId")] [text "Click!"]
+                    // div [] [client <@ Client.Test() @>]
+                ]
+            ]
+        Templating.Main ctx EndPoint.Twitter "Twitter" [
+            h1 [] [text "Say Hi to the server!"]
+            div [attr.id "main"] [
+                form [] [
+                input [attr.id "userId" ] []
+                button [on.click (fun el ev -> 
+                    let input = JS.Document.GetElementById("userId")
+                    JS.Alert ("Alert") //(sprintf "%s" input) 
+                    Client.Test()
+                )] [text "Click!"]
+                // div [] [client <@ Client.Test() @>]
+                ]
+            ]
+            div [] [text "!!!!"]
+        ]
+
+    let Login ctx userId =
+        Content.Page(
+                    Body = [text ("Stats for " + (sprintf "%A" userId))])
+        
+    let WelcomePage ctx =
+        Templating.Welcome ctx EndPoint.Welcome "Welcome" [
+            div [] [client <@ Client.Login() @>]
+        ]
+
     [<Website>]
     let Main =
         Application.MultiPage (fun ctx endpoint ->
             match endpoint with
             | EndPoint.Home -> HomePage ctx
             | EndPoint.About -> AboutPage ctx
+            | EndPoint.Twitter -> Twitter ctx
+            | EndPoint.Login userId -> Login ctx userId
+            | EndPoint.Welcome ->
+                Content.Page(
+                    Templates.LoginTemplate()
+                        .Title("title")
+                        .Body(
+                            div [] [client <@ Client.Login() @>]
+                        )
+                        .Doc()
+                )
         )

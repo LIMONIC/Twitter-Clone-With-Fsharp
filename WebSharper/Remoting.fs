@@ -389,4 +389,20 @@ module Server =
         async {
             return R input
         }
+    
+    [<Rpc>]
+    let doLogin userId password = 
+        if debug then printfn $"[DEBUG]LoginHandler receive userId: {userId}\npassword: {password}"
+        // let mutable userIdSet = Set.empty
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            if Hi.loginImpl(userId, password, &msg) then
+                // authedUserMap <- authedUserMap.Add(userId, remoteActorAddr)
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
+        
      

@@ -1,24 +1,58 @@
 (function(Global)
 {
  "use strict";
- var WebSharper,Client,TwitterClone_Templates,Concurrency,Remoting,AjaxRemotingProvider,UI,Templating,Runtime,Server,ProviderBuilder,Handler,TemplateInstance,Var$1,Client$1,Templates;
+ var WebSharper,Client,Site,TwitterClone_Templates,console,UI,Var$1,Templating,Runtime,Server,ProviderBuilder,Handler,TemplateInstance,Doc,AttrProxy,Client$1,Templates,Concurrency,Remoting,AjaxRemotingProvider,IntelliFactory,Runtime$1;
  WebSharper=Global.WebSharper=Global.WebSharper||{};
  Client=WebSharper.Client=WebSharper.Client||{};
+ Site=WebSharper.Site=WebSharper.Site||{};
  TwitterClone_Templates=Global.TwitterClone_Templates=Global.TwitterClone_Templates||{};
- Concurrency=WebSharper&&WebSharper.Concurrency;
- Remoting=WebSharper&&WebSharper.Remoting;
- AjaxRemotingProvider=Remoting&&Remoting.AjaxRemotingProvider;
+ console=Global.console;
  UI=WebSharper&&WebSharper.UI;
+ Var$1=UI&&UI.Var$1;
  Templating=UI&&UI.Templating;
  Runtime=Templating&&Templating.Runtime;
  Server=Runtime&&Runtime.Server;
  ProviderBuilder=Server&&Server.ProviderBuilder;
  Handler=Server&&Server.Handler;
  TemplateInstance=Server&&Server.TemplateInstance;
- Var$1=UI&&UI.Var$1;
+ Doc=UI&&UI.Doc;
+ AttrProxy=UI&&UI.AttrProxy;
  Client$1=UI&&UI.Client;
  Templates=Client$1&&Client$1.Templates;
- Client.Db$41$22=function()
+ Concurrency=WebSharper&&WebSharper.Concurrency;
+ Remoting=WebSharper&&WebSharper.Remoting;
+ AjaxRemotingProvider=Remoting&&Remoting.AjaxRemotingProvider;
+ IntelliFactory=Global.IntelliFactory;
+ Runtime$1=IntelliFactory&&IntelliFactory.Runtime;
+ Client.Login$75$21=function()
+ {
+  return function(e)
+  {
+   console.log(e.Vars.Hole("inputusername").$1.Get()+" : "+e.Vars.Hole("inputuserpass").$1.Get());
+  };
+ };
+ Client.Login=function()
+ {
+  var b,t,p,i;
+  Var$1.Create$1("");
+  Var$1.Create$1("");
+  return(b=(t=new ProviderBuilder.New$1(),(t.h.push(Handler.EventQ2(t.k,"onlogin",function()
+  {
+   return t.i;
+  },function(e)
+  {
+   console.log(e.Vars.Hole("inputusername").$1.Get()+" : "+e.Vars.Hole("inputuserpass").$1.Get());
+  })),t)),(p=Handler.CompleteHoles(b.k,b.h,[["inputusername",0],["inputuserpass",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.loginblock(p[0])),b.i=i,i))).get_Doc();
+ };
+ Client.Test=function()
+ {
+  var inputField,copyTheInput;
+  inputField=Doc.Input([],Var$1.Create$1(""));
+  copyTheInput=Doc.Element("div",[AttrProxy.Create("class","panel-default")],[Doc.Element("div",[AttrProxy.Create("class","panel-body")],[inputField])]);
+  Templates.LoadLocalTemplates("");
+  Doc.RunById("main",copyTheInput);
+ };
+ Client.Db$40$22=function()
  {
   return function()
   {
@@ -50,7 +84,7 @@
    $1:"Sccess!"
   }),_this)),(p=Handler.CompleteHoles(b.k,b.h,[["texttoreverse",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.mainform(p[0])),b.i=i,i))).get_Doc();
  };
- Client.Main$26$22=function()
+ Client.Main$25$22=function()
  {
   return function()
   {
@@ -62,7 +96,7 @@
    })),null);
   };
  };
- Client.Main$18$20=function(rvReversed)
+ Client.Main$17$20=function(rvReversed)
  {
   return function(e)
   {
@@ -115,6 +149,24 @@
    $0:"result",
    $1:"Sccess!"
   }),_this)),(p=Handler.CompleteHoles(b.k,b.h,[["texttoreverse",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.mainform(p[0])),b.i=i,i))).get_Doc();
+ };
+ Site.Twitter$87$34=Runtime$1.Curried3(function($1,$2,$3)
+ {
+  self.document.getElementById("userId");
+  Global.alert("Alert");
+  return Client.Test();
+ });
+ Site.Twitter$78$38=Runtime$1.Curried3(function($1,$2,$3)
+ {
+  return Global.alert("userId");
+ });
+ TwitterClone_Templates.loginblock=function(h)
+ {
+  Templates.LoadLocalTemplates("login");
+  return h?Templates.NamedTemplate("login",{
+   $:1,
+   $0:"loginblock"
+  },h):void 0;
  };
  TwitterClone_Templates.mainform=function(h)
  {

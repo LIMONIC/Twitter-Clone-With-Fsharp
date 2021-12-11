@@ -4,11 +4,10 @@ open WebSharper
 open WebSharper.UI
 open WebSharper.UI.Templating
 open WebSharper.UI.Notation
+open WebSharper.UI.Client
+open WebSharper.UI.Html
+open WebSharper.JavaScript
 
-[<JavaScript>]
-module Templates =
-
-    type MainTemplate = Templating.Template<"Main.html", ClientLoad.FromDocument, ServerLoad.WhenChanged>
 
 [<JavaScript>]
 module Client =
@@ -46,11 +45,42 @@ module Client =
             )
             .Result("Sccess!")
             .Doc()
+    let Test () = 
+        let input = Var.Create ""
+        let inputField = Doc.Input [] input
+        // let label = textView input.View
+        let copyTheInput =
+            div [attr.``class`` "panel-default"] [
+              div [attr.``class`` "panel-body"] [
+                inputField
+                // div [label]
+              ]
+            ]
+        Doc.RunById "main" copyTheInput
         // Templates.MainTemplate.MainForm()
-        //     .OnInitDB(fun e ->
+        //     .OnLogin(fun e ->
         //         async {
-        //             Server.DoDBInit()
+        //             let! res = Server.DoLogin e.Vars.userId.Value
+        //             resStr := res
         //         }
         //         |> Async.StartImmediate
         //     )
+        //     .Result(resStr.View)
         //     .Doc()
+   
+    let Login () =
+        let userId = Var.Create ""
+        let userPass = Var.Create ""
+        Templates.LoginTemplate.LoginBlock()
+            .OnLogin(fun e ->
+                let id = e.Vars.InputUserName.Value
+                let pass = e.Vars.InputUserPass.Value
+                Console.Log(id + " : " + pass)
+//            async {
+//                let! res = Server.DoLogin e.Vars.userId.Value
+//                resStr := res
+//            }
+//            |> Async.StartImmediate
+            )
+            .Doc()
+        
