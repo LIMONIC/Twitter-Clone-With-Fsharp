@@ -1,17 +1,23 @@
 (function(Global)
 {
  "use strict";
- var WebSharper,Client,Site,TwitterClone_Templates,console,UI,Var$1,Templating,Runtime,Server,ProviderBuilder,Handler,TemplateInstance,Doc,AttrProxy,Client$1,Templates,Concurrency,Remoting,AjaxRemotingProvider,IntelliFactory,Runtime$1;
+ var WebSharper,Client,Site,TwitterClone_Templates,IntelliFactory,Runtime,Utils,console,Concurrency,Remoting,AjaxRemotingProvider,UI,Var$1,Templating,Runtime$1,Server,ProviderBuilder,Handler,TemplateInstance,Doc,AttrProxy,Client$1,Templates;
  WebSharper=Global.WebSharper=Global.WebSharper||{};
  Client=WebSharper.Client=WebSharper.Client||{};
  Site=WebSharper.Site=WebSharper.Site||{};
  TwitterClone_Templates=Global.TwitterClone_Templates=Global.TwitterClone_Templates||{};
+ IntelliFactory=Global.IntelliFactory;
+ Runtime=IntelliFactory&&IntelliFactory.Runtime;
+ Utils=WebSharper&&WebSharper.Utils;
  console=Global.console;
+ Concurrency=WebSharper&&WebSharper.Concurrency;
+ Remoting=WebSharper&&WebSharper.Remoting;
+ AjaxRemotingProvider=Remoting&&Remoting.AjaxRemotingProvider;
  UI=WebSharper&&WebSharper.UI;
  Var$1=UI&&UI.Var$1;
  Templating=UI&&UI.Templating;
- Runtime=Templating&&Templating.Runtime;
- Server=Runtime&&Runtime.Server;
+ Runtime$1=Templating&&Templating.Runtime;
+ Server=Runtime$1&&Runtime$1.Server;
  ProviderBuilder=Server&&Server.ProviderBuilder;
  Handler=Server&&Server.Handler;
  TemplateInstance=Server&&Server.TemplateInstance;
@@ -19,30 +25,105 @@
  AttrProxy=UI&&UI.AttrProxy;
  Client$1=UI&&UI.Client;
  Templates=Client$1&&Client$1.Templates;
- Concurrency=WebSharper&&WebSharper.Concurrency;
- Remoting=WebSharper&&WebSharper.Remoting;
- AjaxRemotingProvider=Remoting&&Remoting.AjaxRemotingProvider;
- IntelliFactory=Global.IntelliFactory;
- Runtime$1=IntelliFactory&&IntelliFactory.Runtime;
- Client.Login$75$21=function()
+ Client.Register$93$24=function(resJsonStr)
  {
   return function(e)
   {
-   console.log(e.Vars.Hole("inputusername").$1.Get()+" : "+e.Vars.Hole("inputuserpass").$1.Get());
+   var userId,userPass,userEmail,prop,b;
+   userId=e.Vars.Hole("registerusername").$1.Get();
+   userPass=e.Vars.Hole("registeruserpass").$1.Get();
+   userEmail=e.Vars.Hole("registeruseremail").$1.Get();
+   prop=(((Runtime.Curried3(function($1,$2,$3)
+   {
+    return $1("{\"email\": \""+Utils.toSafe($2)+"\", \"nickName\": \""+Utils.toSafe($3)+"\"}");
+   }))(Global.id))(userEmail))(userId);
+   console.log(userId+" : "+userPass+" : "+userEmail);
+   Concurrency.StartImmediate((b=null,Concurrency.Delay(function()
+   {
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoRegister:-419958693",[userId,userPass,prop]),function(a)
+    {
+     resJsonStr.Set(a);
+     return Concurrency.Zero();
+    });
+   })),null);
   };
  };
- Client.Login=function()
+ Client.Register=function()
  {
-  var b,t,p,i;
-  Var$1.Create$1("");
-  Var$1.Create$1("");
-  return(b=(t=new ProviderBuilder.New$1(),(t.h.push(Handler.EventQ2(t.k,"onlogin",function()
+  var resJsonStr,b,R,_this,t,p,i;
+  resJsonStr=Var$1.Create$1("");
+  return(b=(R=resJsonStr.get_View(),(_this=(t=new ProviderBuilder.New$1(),(t.h.push(Handler.EventQ2(t.k,"onregister",function()
   {
    return t.i;
   },function(e)
   {
-   console.log(e.Vars.Hole("inputusername").$1.Get()+" : "+e.Vars.Hole("inputuserpass").$1.Get());
-  })),t)),(p=Handler.CompleteHoles(b.k,b.h,[["inputusername",0],["inputuserpass",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.loginblock(p[0])),b.i=i,i))).get_Doc();
+   var userId,userPass,userEmail,prop,b$1;
+   userId=e.Vars.Hole("registerusername").$1.Get();
+   userPass=e.Vars.Hole("registeruserpass").$1.Get();
+   userEmail=e.Vars.Hole("registeruseremail").$1.Get();
+   prop=(((Runtime.Curried3(function($1,$2,$3)
+   {
+    return $1("{\"email\": \""+Utils.toSafe($2)+"\", \"nickName\": \""+Utils.toSafe($3)+"\"}");
+   }))(Global.id))(userEmail))(userId);
+   console.log(userId+" : "+userPass+" : "+userEmail);
+   Concurrency.StartImmediate((b$1=null,Concurrency.Delay(function()
+   {
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoRegister:-419958693",[userId,userPass,prop]),function(a)
+    {
+     resJsonStr.Set(a);
+     return Concurrency.Zero();
+    });
+   })),null);
+  })),t)),(_this.h.push({
+   $:2,
+   $0:"result",
+   $1:R
+  }),_this))),(p=Handler.CompleteHoles(b.k,b.h,[["registerusername",0],["registeruseremail",0],["registeruserpass",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.loginblock(p[0])),b.i=i,i))).get_Doc();
+ };
+ Client.Login$78$21=function(resJsonStr)
+ {
+  return function(e)
+  {
+   var userId,userPass,b;
+   userId=e.Vars.Hole("inputusername").$1.Get();
+   userPass=e.Vars.Hole("inputuserpass").$1.Get();
+   console.log(userId+" : "+userPass);
+   Concurrency.StartImmediate((b=null,Concurrency.Delay(function()
+   {
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoLogin:-865648821",[userId,userPass]),function(a)
+    {
+     resJsonStr.Set(a);
+     return Concurrency.Zero();
+    });
+   })),null);
+  };
+ };
+ Client.Login=function()
+ {
+  var resJsonStr,b,R,_this,t,p,i;
+  resJsonStr=Var$1.Create$1("");
+  return(b=(R=resJsonStr.get_View(),(_this=(t=new ProviderBuilder.New$1(),(t.h.push(Handler.EventQ2(t.k,"onlogin",function()
+  {
+   return t.i;
+  },function(e)
+  {
+   var userId,userPass,b$1;
+   userId=e.Vars.Hole("inputusername").$1.Get();
+   userPass=e.Vars.Hole("inputuserpass").$1.Get();
+   console.log(userId+" : "+userPass);
+   Concurrency.StartImmediate((b$1=null,Concurrency.Delay(function()
+   {
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoLogin:-865648821",[userId,userPass]),function(a)
+    {
+     resJsonStr.Set(a);
+     return Concurrency.Zero();
+    });
+   })),null);
+  })),t)),(_this.h.push({
+   $:2,
+   $0:"result",
+   $1:R
+  }),_this))),(p=Handler.CompleteHoles(b.k,b.h,[["inputusername",0],["inputuserpass",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.loginblock$1(p[0])),b.i=i,i))).get_Doc();
  };
  Client.Test=function()
  {
@@ -52,7 +133,7 @@
   Templates.LoadLocalTemplates("");
   Doc.RunById("main",copyTheInput);
  };
- Client.Db$40$22=function()
+ Client.Db$44$22=function()
  {
   return function()
   {
@@ -84,7 +165,7 @@
    $1:"Sccess!"
   }),_this)),(p=Handler.CompleteHoles(b.k,b.h,[["texttoreverse",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.mainform(p[0])),b.i=i,i))).get_Doc();
  };
- Client.Main$25$22=function()
+ Client.Main$29$22=function()
  {
   return function()
   {
@@ -96,14 +177,14 @@
    })),null);
   };
  };
- Client.Main$17$20=function(rvReversed)
+ Client.Main$21$20=function(rvReversed)
  {
   return function(e)
   {
    var b;
    Concurrency.StartImmediate((b=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:-2030603568",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:1852797484",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
     {
      rvReversed.Set(a);
      return Concurrency.Zero();
@@ -123,7 +204,7 @@
    var b$1;
    Concurrency.StartImmediate((b$1=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:-2030603568",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:1852797484",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
     {
      rvReversed.Set(a);
      return Concurrency.Zero();
@@ -150,17 +231,25 @@
    $1:"Sccess!"
   }),_this)),(p=Handler.CompleteHoles(b.k,b.h,[["texttoreverse",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.mainform(p[0])),b.i=i,i))).get_Doc();
  };
- Site.Twitter$87$34=Runtime$1.Curried3(function($1,$2,$3)
+ Site.Twitter$99$34=Runtime.Curried3(function($1,$2,$3)
  {
   self.document.getElementById("userId");
   Global.alert("Alert");
   return Client.Test();
  });
- Site.Twitter$78$38=Runtime$1.Curried3(function($1,$2,$3)
+ Site.Twitter$90$38=Runtime.Curried3(function($1,$2,$3)
  {
   return Global.alert("userId");
  });
  TwitterClone_Templates.loginblock=function(h)
+ {
+  Templates.LoadLocalTemplates("register");
+  return h?Templates.NamedTemplate("register",{
+   $:1,
+   $0:"loginblock"
+  },h):void 0;
+ };
+ TwitterClone_Templates.loginblock$1=function(h)
  {
   Templates.LoadLocalTemplates("login");
   return h?Templates.NamedTemplate("login",{

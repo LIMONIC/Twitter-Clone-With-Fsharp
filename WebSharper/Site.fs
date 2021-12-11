@@ -13,7 +13,7 @@ type EndPoint =
     | [<EndPoint "/about">] About
     | [<EndPoint "/Twitter">] Twitter
     | [<EndPoint "/welcome">] Welcome
-    | [<EndPoint "GET /Login">] Login of userId: int
+    | [<EndPoint "/register">] Register
     // and userId = 001
     // and pass = "1234"
 
@@ -41,14 +41,26 @@ module Templating =
                 .Doc()
         )
         
-    let Welcome ctx action (title: string) (body: Doc list) =
+    let Welcome ctx (body: Doc list)  =
         Content.Page(
             Templates.LoginTemplate()
-                .Title(title)
-                .Body(body)
+                .Title("Welcome")
+                .Body(
+                    div [] [client <@ Client.Login() @>]
+                    )
                 .Doc()
         )
-
+        
+    let Register ctx (body: Doc list)  =
+        Content.Page(
+            Templates.RegisterTemplate()
+                .Title("Create your account")
+                .Body(
+                    div [] [client <@ Client.Register() @>]
+                    )
+                .Doc()
+        )
+        
 module Site =
     open WebSharper.UI.Html
 
@@ -95,13 +107,15 @@ module Site =
             div [] [text "!!!!"]
         ]
 
-    let Login ctx userId =
-        Content.Page(
-                    Body = [text ("Stats for " + (sprintf "%A" userId))])
         
     let WelcomePage ctx =
-        Templating.Welcome ctx EndPoint.Welcome "Welcome" [
+        Templating.Welcome ctx [
             div [] [client <@ Client.Login() @>]
+        ]
+        
+    let RegisterPage ctx =
+        Templating.Register ctx [
+            div [] [client <@ Client.Register() @>]
         ]
 
     [<Website>]
@@ -111,14 +125,6 @@ module Site =
             | EndPoint.Home -> HomePage ctx
             | EndPoint.About -> AboutPage ctx
             | EndPoint.Twitter -> Twitter ctx
-            | EndPoint.Login userId -> Login ctx userId
-            | EndPoint.Welcome ->
-                Content.Page(
-                    Templates.LoginTemplate()
-                        .Title("title")
-                        .Body(
-                            div [] [client <@ Client.Login() @>]
-                        )
-                        .Doc()
-                )
+            | EndPoint.Welcome -> WelcomePage ctx
+            | EndPoint.Register -> RegisterPage ctx
         )

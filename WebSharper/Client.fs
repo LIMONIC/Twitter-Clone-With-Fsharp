@@ -1,5 +1,6 @@
 ﻿namespace WebSharper
 
+open FSharp.Data
 open WebSharper
 open WebSharper.UI
 open WebSharper.UI.Templating
@@ -7,10 +8,13 @@ open WebSharper.UI.Notation
 open WebSharper.UI.Client
 open WebSharper.UI.Html
 open WebSharper.JavaScript
+open WebSharper.Json
+
 
 
 [<JavaScript>]
 module Client =
+
     let Main () =
         let rvReversed = Var.Create ""
         Templates.MainTemplate.MainForm()
@@ -69,18 +73,34 @@ module Client =
         //     .Doc()
    
     let Login () =
-        let userId = Var.Create ""
-        let userPass = Var.Create ""
+        let resJsonStr = Var.Create ""
         Templates.LoginTemplate.LoginBlock()
             .OnLogin(fun e ->
-                let id = e.Vars.InputUserName.Value
-                let pass = e.Vars.InputUserPass.Value
-                Console.Log(id + " : " + pass)
-//            async {
-//                let! res = Server.DoLogin e.Vars.userId.Value
-//                resStr := res
-//            }
-//            |> Async.StartImmediate
+                let userId = e.Vars.InputUserName.Value
+                let userPass = e.Vars.InputUserPass.Value
+                Console.Log(userId + " : " + userPass)
+                async {
+                    let! res = Server.DoLogin userId userPass
+                    resJsonStr := res
+                }
+                |> Async.StartImmediate
             )
+            .Result(resJsonStr.View)
             .Doc()
-        
+    let Register () =
+        let resJsonStr = Var.Create ""
+        Templates.RegisterTemplate.LoginBlock()
+            .OnRegister(fun e ->
+                let userId = e.Vars.RegisterUserName.Value
+                let userPass = e.Vars.RegisterUserPass.Value
+                let userEmail = e.Vars.RegisterUserEmail.Value
+                let prop = (sprintf """{"email": "%s", "nickName": "%s"}""" userEmail userId)
+                Console.Log(userId + " : " + userPass + " : " + userEmail)
+                async {
+                    let! res = Server.DoRegister userId userPass prop
+                    resJsonStr := res
+                }
+                |> Async.StartImmediate
+                )
+            .Result(resJsonStr.View)
+            .Doc()

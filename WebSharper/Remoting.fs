@@ -10,6 +10,7 @@ open System.Collections.Generic
 open FSharp
 open FSharp.Data
 open FSharp.Data.JsonExtensions
+open WebSharper.Json
 
 module Server =
     // database
@@ -375,7 +376,7 @@ module Server =
                     msg <- $"Query operation not correct! operation: {operation}"
                     resJsonStr <- Utils.parseRes status msg """[]"""
     let Hi = HandlerImpl()
-
+    connection.Open()
 
     [<Rpc>]
     let DoTest str = printfn "!!!AAAAAAA!!! %s" str
@@ -391,7 +392,7 @@ module Server =
         }
     
     [<Rpc>]
-    let doLogin userId password = 
+    let DoLogin userId password = 
         if debug then printfn $"[DEBUG]LoginHandler receive userId: {userId}\npassword: {password}"
         // let mutable userIdSet = Set.empty
         let mutable status = "error"
@@ -399,10 +400,24 @@ module Server =
         let mutable resJsonStr = ""
         async {
             if Hi.loginImpl(userId, password, &msg) then
-                // authedUserMap <- authedUserMap.Add(userId, remoteActorAddr)
+                authedUserMap <- authedUserMap.Add(userId, "remoteActorAddr")
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
+    [<Rpc>]
+    let DoRegister (userId:string) (password:string) (props:string) =
+        if debug then printfn $"[DEBUG]RegisterHandler receive userId: {userId}\npassword: {password}\nprops: {props}"
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        let parsedProps = JsonValue.Parse(props)
+        async {
+            let nickName = parsedProps?nickName.AsString()
+            let email = parsedProps?email.AsString()
+            if Hi.registerImpl (userId, password, nickName, email, &msg) then
                 status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
         }
         
-     
