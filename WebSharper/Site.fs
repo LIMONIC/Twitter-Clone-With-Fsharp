@@ -4,22 +4,24 @@ open WebSharper
 open WebSharper.Sitelets
 open WebSharper.UI
 open WebSharper.UI.Server
+open WebSharper.UI.Html    
 open WebSharper.JavaScript
 open FSharp.Data
 open FSharp.Data.JsonExtensions
+open WebSharper.UI.Templating
+open WebSharper.UI.Notation
+open WebSharper.Json
 
 type EndPoint =
-    | [<EndPoint "/">] Home
-    | [<EndPoint "/about">] About
-    | [<EndPoint "/Twitter">] Twitter
+    | [<EndPoint "/">] Twitter
+    // | [<EndPoint "/Twitter">] Twitter
     | [<EndPoint "/welcome">] Welcome
     | [<EndPoint "/register">] Register
     // and userId = 001
     // and pass = "1234"
 
 module Templating =
-    open WebSharper.UI.Html    
-
+    
     // Compute a menubar where the menu item for the given endpoint is active
     let MenuBar (ctx: Context<EndPoint>) endpoint : Doc list =
         let ( => ) txt act =
@@ -27,9 +29,10 @@ module Templating =
                 a [attr.href (ctx.Link act)] [text txt]
              ]
         [
-            "Home" => EndPoint.Home
+            // "Home" => EndPoint.Home
             "Twitter" => EndPoint.Twitter
-            "About" => EndPoint.About
+            // "Welcome" => EndPoint.Welcome
+            // "Register" => EndPoint.Register
         ]
 
     let Main ctx action (title: string) (body: Doc list) =
@@ -41,89 +44,113 @@ module Templating =
                 .Doc()
         )
         
-    let Welcome ctx (body: Doc list)  =
+        
+
+    let Twitter ctx action (body: Doc list) =
+        Content.Page(
+            Templates.TwitterTemplate()
+                .MenuBar(MenuBar ctx action)
+                .Body(body)
+                .Doc()
+        )
+        
+        
+
+    let Welcome ctx (body: Doc list) =
         Content.Page(
             Templates.LoginTemplate()
                 .Title("Welcome")
-                .Body(
-                    div [] [client <@ Client.Login() @>]
-                    )
+                .Body(body)
                 .Doc()
         )
+        
+        
+        
         
     let Register ctx (body: Doc list)  =
         Content.Page(
             Templates.RegisterTemplate()
                 .Title("Create your account")
-                .Body(
-                    div [] [client <@ Client.Register() @>]
-                    )
+                //.MenuBar(MenuBar ctx action)
+                .Body(body)
                 .Doc()
         )
         
 module Site =
     open WebSharper.UI.Html
 
-    let HomePage ctx =
-        Templating.Main ctx EndPoint.Home "Home" [
-            h1 [] [text "Say Hi to the server!"]
-            div [] [client <@ Client.Main() @>]
-            // div [] [client <@ Client.Test() @>]
-            div [] [text "!!!!"]
-        ]
+    // let HomePage (ctx: Context<EndPoint>) =
+    //     async {
+    //         let! username = ctx.UserSession.GetLoggedInUser()
+    //         let welcomeContent = 
+    //             match username with
+    //                 | None -> 
+    //                     div [] [
+    //                         h1 [] [text ("Welcome, stranger!")]
+    //                         client <@Client.guest()@>
+    //                     ]
+    //                 | Some u ->   
+    //                     let userinfo = u.Split(",")
+    //                     div [] [
+    //                         h1 [] [text ("Welcome back, " + userinfo.[0] + "!")]
+    //                         client <@Client.LoggedInUser()@>
+    //                     ]
+    //         return! Templating.Main ctx EndPoint.Home "Home" [
+    //             welcomeContent
+    //             div [] [client <@ Client.Main() @>]
+    //             // div [] [client <@ Client.Test() @>]
+    //             div [] [text "!!!!"]
+    //         ]
+    //     }
+        
+        
 
-    let AboutPage ctx =
-        Templating.Main ctx EndPoint.About "About" [
-            h1 [] [text "About"]
-            p [] [text "This is a template WebSharper client-server application."]
-        ]
-
-    let Twitter ctx =
-        // let userId = Var.Create ""
-        // let pass = Var.Create ""
-        // let myInput = Doc.Input [ attr.name "my-input" ] userId
-        let userLoginDoc = 
-            div [] [
-                h1 [] [ text "User Login"]
-                form [] [
-                    input [attr.name "userId"] []
-                    button [on.click (fun el ev -> JS.Alert "userId")] [text "Click!"]
-                    // div [] [client <@ Client.Test() @>]
-                ]
+    let Twitter (ctx: Context<EndPoint>) =
+        async {
+            let! username = ctx.UserSession.GetLoggedInUser()
+            let welcomeContent = 
+                match username with
+                    | None -> 
+                        div [] [
+                            h1 [] [text ("Welcome, stranger!")]
+                            client <@Client.guest()@>
+                        ]
+                    | Some u ->   
+                        let userinfo = u.Split(",")
+                        div [] [
+                            h1 [] [text ("Welcome back, " + userinfo.[0] + "!")]
+                            client <@Client.LoggedInUser()@>
+                        ]
+            return! Templating.Twitter ctx EndPoint.Twitter [
+                welcomeContent
+                div [] [client <@ Client.Twitter() @>]
             ]
-        Templating.Main ctx EndPoint.Twitter "Twitter" [
-            h1 [] [text "Say Hi to the server!"]
-            div [attr.id "main"] [
-                form [] [
-                input [attr.id "userId" ] []
-                button [on.click (fun el ev -> 
-                    let input = JS.Document.GetElementById("userId")
-                    JS.Alert ("Alert") //(sprintf "%s" input) 
-                    Client.Test()
-                )] [text "Click!"]
-                // div [] [client <@ Client.Test() @>]
-                ]
-            ]
-            div [] [text "!!!!"]
-        ]
+        }
 
         
     let WelcomePage ctx =
-        Templating.Welcome ctx [
-            div [] [client <@ Client.Login() @>]
-        ]
+        async {
+            return! Templating.Welcome ctx [
+                div [] [client <@ Client.Login()@>]
+            ]
+        }
+        
+        
+        
         
     let RegisterPage ctx =
-        Templating.Register ctx [
-            div [] [client <@ Client.Register() @>]
+        async {
+            return! Templating.Register ctx  [
+                div [] [client <@ Client.Register() @>]
         ]
+        }
+        
 
     [<Website>]
     let Main =
         Application.MultiPage (fun ctx endpoint ->
             match endpoint with
-            | EndPoint.Home -> HomePage ctx
-            | EndPoint.About -> AboutPage ctx
+            // | EndPoint.Home -> HomePage ctx
             | EndPoint.Twitter -> Twitter ctx
             | EndPoint.Welcome -> WelcomePage ctx
             | EndPoint.Register -> RegisterPage ctx
