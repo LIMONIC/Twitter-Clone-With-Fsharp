@@ -110,7 +110,9 @@ module Client =
                     let! res = Server.DoLogin userId userPass
                     let resobj = JSON.Parse(res)
                     let status = resobj?status
+                    Console.Log(status)
                     if status = "success" then 
+                        Console.Log("111")
                         JS.Window.Location.Replace("/")
                 }
                 |> Async.StartImmediate
@@ -137,6 +139,32 @@ module Client =
                 )
             .Doc()
 
+    let Account () =
+        let resJsonStr = Var.Create ""
+        Templates.AccountTemplate.AccountForm()
+            .OnFollow(fun e ->
+                let followID = e.Vars.followID.Value
+                
+                Console.Log(followID)
+                async {
+                    let! res = Server.DoFollow followID
+                    Console.Log(res)
+                }
+                |> Async.StartImmediate
+            )
+            .OnUnfollow(fun e ->
+                let unfollowID = e.Vars.unfollowID.Value
+                
+                Console.Log(unfollowID)
+                async {
+                    let! res = Server.DoUnfollow unfollowID
+                    Console.Log(res)
+                }
+                |> Async.StartImmediate
+            )
+            
+            .Doc()
+
     let Twitter () =
         let resJsonStr = Var.Create ""
         Templates.TwitterTemplate.TwitterForm()
@@ -150,6 +178,20 @@ module Client =
                 Console.Log(prop)
                 async {
                     let! res = Server.DoTweet prop
+                    resJsonStr := res         
+                }
+                |> Async.StartImmediate
+            )
+            .OnReTweet(fun e ->
+                let tweetId = e.Vars.tweetID.Value
+                let tag = e.Vars.reTweetTags.Value.Split [|','|]
+                let tags = "\"" + System.String.Join("\",\"", tag) + "\""
+                let mention = e.Vars.reTweetMentions.Value.Split [|','|]
+                let mentions = "\"" + System.String.Join("\",\"", mention) + "\""
+                let prop = (sprintf """{"tweetId": "%s", "tag": [%s], "mention": [%s]}""" tweetId tags mentions)
+                Console.Log(prop)
+                async {
+                    let! res = Server.DoReTweet prop
                     resJsonStr := res         
                 }
                 |> Async.StartImmediate

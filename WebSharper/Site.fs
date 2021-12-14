@@ -17,6 +17,7 @@ type EndPoint =
     // | [<EndPoint "/Twitter">] Twitter
     | [<EndPoint "/welcome">] Welcome
     | [<EndPoint "/register">] Register
+    | [<EndPoint "/account">] Account
     // and userId = 001
     // and pass = "1234"
 
@@ -31,9 +32,12 @@ module Templating =
         [
             // "Home" => EndPoint.Home
             "Twitter" => EndPoint.Twitter
+            "Account" => EndPoint.Account
             // "Welcome" => EndPoint.Welcome
             // "Register" => EndPoint.Register
         ]
+
+    
 
     let Main ctx action (title: string) (body: Doc list) =
         Content.Page(
@@ -71,6 +75,15 @@ module Templating =
         Content.Page(
             Templates.RegisterTemplate()
                 .Title("Create your account")
+                //.MenuBar(MenuBar ctx action)
+                .Body(body)
+                .Doc()
+        )
+
+    let Account ctx action (body: Doc list)  =
+        Content.Page(
+            Templates.AccountTemplate()
+                .MenuBar(MenuBar ctx action)
                 //.MenuBar(MenuBar ctx action)
                 .Body(body)
                 .Doc()
@@ -136,13 +149,26 @@ module Site =
         }
         
         
-        
-        
     let RegisterPage ctx =
         async {
             return! Templating.Register ctx  [
                 div [] [client <@ Client.Register() @>]
-        ]
+            ]
+        }
+
+    let AccountPage (ctx:Context<EndPoint>) =
+        async {
+            let! username = ctx.UserSession.GetLoggedInUser()
+            
+            match username with
+                | None -> 
+                    return! Templating.Welcome ctx [
+                        div [] [client <@ Client.Login()@>]
+                    ]
+                | Some u ->   
+                    return! Templating.Account ctx EndPoint.Account [
+                        div [] [client <@ Client.Account() @>]
+                    ]
         }
         
 
@@ -154,4 +180,5 @@ module Site =
             | EndPoint.Twitter -> Twitter ctx
             | EndPoint.Welcome -> WelcomePage ctx
             | EndPoint.Register -> RegisterPage ctx
+            | EndPoint.Account -> AccountPage ctx
         )

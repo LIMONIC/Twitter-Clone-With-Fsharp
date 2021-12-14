@@ -17,6 +17,7 @@
     <Content Include="templates\Main.html" />
     <Content Include="templates\register.html" />
     <Content Include="templates\Twitter.html" />
+    <Content Include="templates\account.html" />
     <Content Include="templates\signin.css" />
     <None Include="assets\brand\bootstrap-logo-white.svg" />
     <None Include="assets\brand\bootstrap-logo.svg" />

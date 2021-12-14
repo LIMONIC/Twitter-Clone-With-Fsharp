@@ -491,12 +491,52 @@ module Server =
             let userId = Array.get userinfo 0
             let password = Array.get userinfo 1
             let mutable tweetId = Utils.getSHA1Str ""
-            let content = parsedProps?content.AsString()
+            let retweetId = parsedProps?tweetId.AsString()
             let tag = parsedProps?tag.AsArray()
             let mention = parsedProps?mention.AsArray()
-            if Hi.tweetAndRetweetImpl (&tweetId, userId, content, tag, mention, &msg, "tweet") then
+            if Hi.tweetAndRetweetImpl (&tweetId, userId, retweetId, tag, mention, &msg, "retweet") then
                 status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
         }
         
+
+    [<Rpc>]
+    let DoFollow (followID:string) =   
+        if debug then printfn $"[DEBUG]FollowHandler receive followID: {followID}"
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            if Hi.followImpl (userId, followID, &msg) then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
+
+    [<Rpc>]
+    let DoUnfollow (unfollowID:string) =   
+        if debug then printfn $"[DEBUG]UnfollowHandler receive unfollowID: {unfollowID}"
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            if Hi.unfollowImpl (userId, unfollowID, &msg) then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
