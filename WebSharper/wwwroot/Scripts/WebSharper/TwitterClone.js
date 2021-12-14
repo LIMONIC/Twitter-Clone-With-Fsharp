@@ -40,7 +40,7 @@
    console.log(userId+" : "+userPass+" : "+userEmail);
    Concurrency.StartImmediate((b=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoRegister:-419958693",[userId,userPass,prop]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoRegister:-527084609",[userId,userPass,prop]),function(a)
     {
      resJsonStr.Set(a);
      return Concurrency.Zero();
@@ -68,7 +68,7 @@
    console.log(userId+" : "+userPass+" : "+userEmail);
    Concurrency.StartImmediate((b$1=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoRegister:-419958693",[userId,userPass,prop]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoRegister:-527084609",[userId,userPass,prop]),function(a)
     {
      resJsonStr.Set(a);
      return Concurrency.Zero();
@@ -90,7 +90,7 @@
    console.log(userId+" : "+userPass);
    Concurrency.StartImmediate((b=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoLogin:-865648821",[userId,userPass]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoLogin:446134978",[userId,userPass]),function(a)
     {
      resJsonStr.Set(a);
      return Concurrency.Zero();
@@ -113,7 +113,7 @@
    console.log(userId+" : "+userPass);
    Concurrency.StartImmediate((b$1=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoLogin:-865648821",[userId,userPass]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoLogin:446134978",[userId,userPass]),function(a)
     {
      resJsonStr.Set(a);
      return Concurrency.Zero();
@@ -184,7 +184,7 @@
    var b;
    Concurrency.StartImmediate((b=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:1852797484",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:-1277680967",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
     {
      rvReversed.Set(a);
      return Concurrency.Zero();
@@ -204,7 +204,7 @@
    var b$1;
    Concurrency.StartImmediate((b$1=null,Concurrency.Delay(function()
    {
-    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:1852797484",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
+    return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoSomething:-1277680967",[e.Vars.Hole("texttoreverse").$1.Get()]),function(a)
     {
      rvReversed.Set(a);
      return Concurrency.Zero();
