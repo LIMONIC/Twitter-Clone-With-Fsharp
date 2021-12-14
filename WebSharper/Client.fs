@@ -1,44 +1,70 @@
 ﻿namespace WebSharper
 
 open FSharp.Data
+open FSharp.Data.JsonExtensions
 open WebSharper
 open WebSharper.UI
 open WebSharper.UI.Templating
 open WebSharper.UI.Notation
+open WebSharper.Sitelets
 open WebSharper.UI.Client
 open WebSharper.UI.Html
 open WebSharper.JavaScript
 open WebSharper.Json
 
-
-
 [<JavaScript>]
 module Client =
+    
+    let LoggedInUser () =
+        div [attr.style "margin-bottom: 20px"] [
+            p [attr.style "display: inline; margin: 0 10px 15px 0"] [text "click here to log out:"]
+            button [
+                attr.``class`` "btn btn-primary mybtn"
+                on.click (fun _ _ ->
+                    async {
+                        let! res = Server.DoLogout()
+                        return JS.Window.Location.Replace("/")
+                    }
+                    |> Async.Start
+                )
+            ] [text "logout"]
+        ]
 
-    let Main () =
-        let rvReversed = Var.Create ""
-        Templates.MainTemplate.MainForm()
-            .OnSend(fun e ->
-                async {
-                    let! res = Server.DoSomething e.Vars.TextToReverse.Value
-                    rvReversed := res
-                }
-                |> Async.StartImmediate
-            )
-            .Reversed(rvReversed.View)
-            .OnInitDB(fun e ->
-                async {
-                    Server.DoDBInit ()
-                }
-                |> Async.StartImmediate
-            )
-            .Result("Sccess!")
-            .Doc()
-    // let Test () = 
+    let guest() =
+        div [attr.style "margin-bottom: 20px"] [
+            p [attr.style "display: inline; margin: 0 10px 15px 0"] [text "click here to log in:"]
+            button [
+                attr.``class`` "btn btn-primary mybtn"
+                on.click (fun _ _ ->
+                    async {
+                        Console.Log("login")
+                        return JS.Window.Location.Replace("/welcome")
+                    }
+                    |> Async.Start
+                )
+            ] [text "login"]
+        ]
+
+    // let Main () =
+    //     let rvReversed = Var.Create ""
     //     Templates.MainTemplate.MainForm()
-    //         .OnTest(fun e -> Server.DoTest "TEST")
+    //         .OnSend(fun e ->
+    //             async {
+    //                 let! res = Server.DoSomething e.Vars.TextToReverse.Value
+    //                 rvReversed := res
+    //             }
+    //             |> Async.StartImmediate
+    //         )
+    //         .Reversed(rvReversed.View)
+    //         .OnInitDB(fun e ->
+    //             async {
+    //                 Server.DoDBInit ()
+    //             }
+    //             |> Async.StartImmediate
+    //         )
     //         .Result("Sccess!")
-    //         .Doc()         
+    //         .Doc()
+       
     let Db () = 
         Templates.MainTemplate.MainForm()
             .OnInitDB(fun e ->
@@ -49,6 +75,7 @@ module Client =
             )
             .Result("Sccess!")
             .Doc()
+
     let Test () = 
         let input = Var.Create ""
         let inputField = Doc.Input [] input
@@ -73,20 +100,25 @@ module Client =
         //     .Doc()
    
     let Login () =
-        let resJsonStr = Var.Create ""
         Templates.LoginTemplate.LoginBlock()
             .OnLogin(fun e ->
                 let userId = e.Vars.InputUserName.Value
                 let userPass = e.Vars.InputUserPass.Value
                 Console.Log(userId + " : " + userPass)
                 async {
+                   
                     let! res = Server.DoLogin userId userPass
-                    resJsonStr := res
+                    let resobj = JSON.Parse(res)
+                    let status = resobj?status
+                    Console.Log(status)
+                    if status = "success" then 
+                        Console.Log("111")
+                        JS.Window.Location.Replace("/")
                 }
                 |> Async.StartImmediate
             )
-            .Result(resJsonStr.View)
             .Doc()
+
     let Register () =
         let resJsonStr = Var.Create ""
         Templates.RegisterTemplate.LoginBlock()
@@ -98,9 +130,74 @@ module Client =
                 Console.Log(userId + " : " + userPass + " : " + userEmail)
                 async {
                     let! res = Server.DoRegister userId userPass prop
-                    resJsonStr := res
+                    let resobj = JSON.Parse(res)
+                    let status = resobj?status
+                    if status = "success" then 
+                        JS.Window.Location.Replace("/")
                 }
                 |> Async.StartImmediate
                 )
+            .Doc()
+
+    let Account () =
+        let resJsonStr = Var.Create ""
+        Templates.AccountTemplate.AccountForm()
+            .OnFollow(fun e ->
+                let followID = e.Vars.followID.Value
+                
+                Console.Log(followID)
+                async {
+                    let! res = Server.DoFollow followID
+                    Console.Log(res)
+                }
+                |> Async.StartImmediate
+            )
+            .OnUnfollow(fun e ->
+                let unfollowID = e.Vars.unfollowID.Value
+                
+                Console.Log(unfollowID)
+                async {
+                    let! res = Server.DoUnfollow unfollowID
+                    Console.Log(res)
+                }
+                |> Async.StartImmediate
+            )
+            
+            .Doc()
+
+    let Twitter () =
+        let resJsonStr = Var.Create ""
+        Templates.TwitterTemplate.TwitterForm()
+            .OnTweet(fun e ->
+                let content = e.Vars.tweetContent.Value
+                let tag = e.Vars.tweetTags.Value.Split [|','|]
+                let tags = "\"" + System.String.Join("\",\"", tag) + "\""
+                let mention = e.Vars.tweetMentions.Value.Split [|','|]
+                let mentions = "\"" + System.String.Join("\",\"", mention) + "\""
+                let prop = (sprintf """{"content": "%s", "tag": [%s], "mention": [%s]}""" content tags mentions)
+                Console.Log(prop)
+                async {
+                    let! res = Server.DoTweet prop
+                    resJsonStr := res         
+                }
+                |> Async.StartImmediate
+            )
+            .OnReTweet(fun e ->
+                let tweetId = e.Vars.tweetID.Value
+                let tag = e.Vars.reTweetTags.Value.Split [|','|]
+                let tags = "\"" + System.String.Join("\",\"", tag) + "\""
+                let mention = e.Vars.reTweetMentions.Value.Split [|','|]
+                let mentions = "\"" + System.String.Join("\",\"", mention) + "\""
+                let prop = (sprintf """{"tweetId": "%s", "tag": [%s], "mention": [%s]}""" tweetId tags mentions)
+                Console.Log(prop)
+                async {
+                    let! res = Server.DoReTweet prop
+                    resJsonStr := res         
+                }
+                |> Async.StartImmediate
+            )
             .Result(resJsonStr.View)
             .Doc()
+
+
+    

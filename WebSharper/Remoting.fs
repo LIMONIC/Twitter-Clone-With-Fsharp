@@ -17,9 +17,10 @@ module Server =
     let databaseFilename = "Twitter.sqlite"
     let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename  
     let connection = new SQLiteConnection(connectionString)
+    //printfn "%s" connection.FileName
 
     // Debug printout swithces
-    let debug = false
+    let debug = true
     let dbDebug = true
     let testInfo = true
 
@@ -390,6 +391,29 @@ module Server =
         async {
             return R input
         }
+
+    [<Rpc>]
+    let DoLogout () = 
+        if debug then printfn $"[DEBUG]LogoutHandler receive request"
+        // let mutable userIdSet = Set.empty
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            let password = Array.get userinfo 1
+            if Hi.logoutImpl(userId, password, &msg) then
+                do! ctx.UserSession.Logout()
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
     
     [<Rpc>]
     let DoLogin userId password = 
@@ -401,6 +425,8 @@ module Server =
         async {
             if Hi.loginImpl(userId, password, &msg) then
                 authedUserMap <- authedUserMap.Add(userId, "remoteActorAddr")
+                let ctx = Web.Remoting.GetContext()
+                do! ctx.UserSession.LoginUser(userId + "," + password)
                 status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
@@ -420,4 +446,97 @@ module Server =
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
         }
+
+    [<Rpc>]
+    let DoTweet (props:string) =   
+        if debug then printfn $"[DEBUG]TweetHandler receive props: {props}"
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        let parsedProps = JsonValue.Parse(props)
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            let password = Array.get userinfo 1
+            let mutable tweetId = Utils.getSHA1Str ""
+            let content = parsedProps?content.AsString()
+            let tag = parsedProps?tag.AsArray()
+            let mention = parsedProps?mention.AsArray()
+            if Hi.tweetAndRetweetImpl (&tweetId, userId, content, tag, mention, &msg, "tweet") then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
+
+    
+    [<Rpc>]
+    let DoReTweet (props:string) =   
+        if debug then printfn $"[DEBUG]ReTweetHandler receive props: {props}"
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        let parsedProps = JsonValue.Parse(props)
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            let password = Array.get userinfo 1
+            let mutable tweetId = Utils.getSHA1Str ""
+            let retweetId = parsedProps?tweetId.AsString()
+            let tag = parsedProps?tag.AsArray()
+            let mention = parsedProps?mention.AsArray()
+            if Hi.tweetAndRetweetImpl (&tweetId, userId, retweetId, tag, mention, &msg, "retweet") then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
         
+
+    [<Rpc>]
+    let DoFollow (followID:string) =   
+        if debug then printfn $"[DEBUG]FollowHandler receive followID: {followID}"
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            if Hi.followImpl (userId, followID, &msg) then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }
+
+    [<Rpc>]
+    let DoUnfollow (unfollowID:string) =   
+        if debug then printfn $"[DEBUG]UnfollowHandler receive unfollowID: {unfollowID}"
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            if Hi.unfollowImpl (userId, unfollowID, &msg) then
+                status <- "success"
+            resJsonStr <- Utils.parseRes status msg """[]"""
+            return resJsonStr
+        }

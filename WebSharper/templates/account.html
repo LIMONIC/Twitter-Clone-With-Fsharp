@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+    <style>
+        /* Sticky footer styles */
+        html {
+            position: relative;
+            min-height: 100%;
+        }
+        body {
+            /* Margin bottom by footer height */
+            margin-bottom: 60px;
+        }
+        .footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            /* Set the fixed height of the footer here */
+            height: 60px;
+            background-color: #f5f5f5;
+        }
+        .container .text-muted {
+            margin: 20px 0;
+        }
+        .formHeight {
+            height: 300px;
+            border: unset;
+        }
+        .tweetsList {
+            height: 400px;
+            width: unset;
+        }
+        .inputstyle {
+            margin-bottom: 20px; 
+            width: 100%;
+        }
+        .mybtn {
+            padding: 3px 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Static navbar -->
+    <nav class="navbar navbar-default navbar-static-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="#">Your App</a>
+            </div>
+            <div id="navbar" class="navbar-collapse collapse">
+                <ul class="nav navbar-nav" ws-hole="MenuBar"></ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="https://websharper.com">websharper.com</a></li>
+                </ul>
+            </div><!--/.nav-collapse -->
+        </div>
+    </nav>
+    <div class="container">
+        <div ws-replace="Body">
+            <div ws-template="AccountForm" >
+                <div style="width: 50%; float: left;">
+                    <ul class="nav nav-tabs">
+                        <li class="active"><a data-toggle="tab" href="#followtab">Follow</a></li>
+                        <li><a data-toggle="tab" href="#unfollowtab">Unfollow</a></li>
+                    </ul>
+                    <div class="tab-content">
+                        <from id="followtab" class="tab-pane fade in active">
+                            <div class="form-control formHeight">
+                                <input ws-var="followID" type="text" class="form-control inputstyle" id="followID" placeholder="UserID">
+                                <button class="btn btn-lg btn-primary" ws-onclick="OnFollow" style="float: right;">Follow</button>
+                            </div>
+                        </from>
+                        <from id="unfollowtab" class="tab-pane fade">
+                            <div class="form-control formHeight" style="height: 220px;">
+                                <input ws-var="unfollowID" type="text" class="form-control inputstyle" id="unfollowID" placeholder="UserID">
+                                <button class="btn btn-lg btn-primary" ws-onclick="OnUnfollow" style="float: right;">Unfollow</button>
+                            </div>
+                        </from>
+                    </div>
+                </div>
+                <div class="container tweetsList" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 10px; width: 45%;">
+                    <ul ws-hole="FollowList">
+
+                    </ul>
+                </div>
+                <hr />
+            </div>
+        </div>
+    </div>
+    
+    <script ws-replace="scripts"></script>
+</body>
+</html>
