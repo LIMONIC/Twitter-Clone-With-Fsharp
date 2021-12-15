@@ -47,6 +47,10 @@ module Server =
                 content.Substring(0, content.Length - 2) + "]"
             else 
                 content + "]"
+
+       
+
+
         /// Generate SHA1 for ID
         member this.getSHA1Str input = 
             let removeChar (stripChars:string) (text:string) =
@@ -134,28 +138,28 @@ module Server =
     // DB queries
         /// Return a json string containing all tweets subscribed by a certain user
         member this.getSubscribedTweets userId =
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp ASC"
+            $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp DESC"
             |> this.dbQueryMany
             |> Utils.getTweetJsonStr
 
         /// Return the last 20 tweets
         member this.getLast20Tweets _ =
-            "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp ASC limit 20"
+            "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp DESC limit 20"
             |> this.dbQueryMany
             |> Utils.getTweetJsonStr
 
         member this.getTweetsRelatedToTag tagName = 
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp ASC"
+            $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp DESC"
             |> this.dbQueryMany
             |> Utils.getTweetJsonStr
 
         member this.getTweetsMentionById userId = 
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
+            $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp DESC"
             |> this.dbQueryMany
             |> Utils.getTweetJsonStr
 
         member this.getTweetsMentionByName userName = 
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
+            $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp DESC"
             |> this.dbQueryMany
             |> Utils.getTweetJsonStr
 
@@ -169,6 +173,11 @@ module Server =
             |> this.dbQueryMany
             |> Utils.getUserList "follower_id"
 
+        member this.getFollows userId = 
+            $"SELECT user_id FROM UserRelation WHERE follower_id='{userId}'"
+            |> this.dbQueryMany
+            |> Utils.getUserList "user_id"
+
         member this.getMentionedUsers tweetId = 
             $"select DISTINCT user_id from Mention where tweet_id='{tweetId}'"
             |> this.dbQueryMany
@@ -176,6 +185,7 @@ module Server =
     let DB = DB()
 
     type HandlerImpl() =
+
         member this.isUserLoggedIn userId = 
             authedUserMap.ContainsKey(userId)
 
@@ -298,6 +308,8 @@ module Server =
             else
                 flag <- true
             flag
+
+        
 
         member this.followImpl (userId, userIdTofollow, (msg: byref<_>)) =
             let mutable flag = false
@@ -540,3 +552,84 @@ module Server =
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
         }
+
+    [<Rpc>]
+    let getFollowersList (userId:string) =   
+        if debug then printfn $"[DEBUG]getFollowerHandler receive request" 
+        async {
+            let res = DB.getFollows (userId)
+            printfn $"{res}"
+            return res
+        }
+        |> Async.RunSynchronously
+
+    [<Rpc>]
+    let getTweetsListString (operation:string) (props:string)=   
+        if debug then printfn $"[DEBUG]getTweetsListHandler receive operation:{operation}, props:{props}" 
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            let mutable tagId = ""
+            let mutable mention = ""
+            match operation with
+            | "mention" ->
+                mention <- props
+            | "tag" ->
+                tagId <- props
+            | _ -> 
+                mention <- ""
+            Hi.queryImpl(userId, operation, tagId, mention, &msg, &status, &resJsonStr)
+            let resparse = JsonValue.Parse(resJsonStr)
+            let content = resparse?content.AsArray() |> Array.toList
+            let mutable dom = ""
+            List.iter (fun cnt -> 
+                let txt = cnt?text.AsString()
+                let tweetId = cnt?tweetId.AsString()
+                let userId = cnt?userId.AsString()
+                let timestamp = cnt?timestamp.AsString()
+                dom <- dom + $"<div><a class = \"list-group-item\"><p>{tweetId}</p><p>{userId}</p><p>{timestamp}</p><p>{txt}</p></a></div>"
+            ) content
+            return dom
+        }
+        |> Async.RunSynchronously
+
+    [<Rpc>]
+    let getTweetsList (uid:string) (operation:string) (props:string)=   
+        if debug then printfn $"[DEBUG]getTweetsListHandler receive operation:{operation}, props:{props}" 
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            // let ctx = Web.Remoting.GetContext()
+            // let! session = ctx.UserSession.GetLoggedInUser()
+            // let userinfo = 
+            //     match session with
+            //     | None -> [|"";""|]
+            //     | Some u -> u.Split(",")
+            // let userId = Array.get userinfo 0
+            let mutable tagId = ""
+            let mutable mention = ""
+            match operation with
+            | "mention" ->
+                mention <- props
+            | "tag" ->
+                tagId <- props
+            | _ -> 
+                mention <- ""
+            Hi.queryImpl(uid, operation, tagId, mention, &msg, &status, &resJsonStr)
+            let mutable dom = ""
+            let resparse = JsonValue.Parse(resJsonStr)
+            let content = resparse?content.AsArray() |> Array.toList
+            return content
+            
+        }
+        |> Async.RunSynchronously
+        

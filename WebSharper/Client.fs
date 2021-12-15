@@ -1,5 +1,6 @@
 ﻿namespace WebSharper
-
+open System
+open System.IO
 open FSharp.Data
 open FSharp.Data.JsonExtensions
 open WebSharper
@@ -12,9 +13,10 @@ open WebSharper.UI.Html
 open WebSharper.JavaScript
 open WebSharper.Json
 
+
 [<JavaScript>]
 module Client =
-    
+
     let LoggedInUser () =
         div [attr.style "margin-bottom: 20px"] [
             p [attr.style "display: inline; margin: 0 10px 15px 0"] [text "click here to log out:"]
@@ -106,7 +108,7 @@ module Client =
                 let userPass = e.Vars.InputUserPass.Value
                 Console.Log(userId + " : " + userPass)
                 async {
-                   
+                    
                     let! res = Server.DoLogin userId userPass
                     let resobj = JSON.Parse(res)
                     let status = resobj?status
@@ -128,6 +130,7 @@ module Client =
                 let userEmail = e.Vars.RegisterUserEmail.Value
                 let prop = (sprintf """{"email": "%s", "nickName": "%s"}""" userEmail userId)
                 Console.Log(userId + " : " + userPass + " : " + userEmail)
+                
                 async {
                     let! res = Server.DoRegister userId userPass prop
                     let resobj = JSON.Parse(res)
@@ -139,6 +142,19 @@ module Client =
                 )
             .Doc()
 
+    
+    let FollowList userId =
+        let array = Server.getFollowersList userId 
+        
+        List.map (fun txt -> 
+            div [] [
+                a [attr.``class`` "list-group-item"] [text txt]
+            ]
+        ) array
+
+    
+      
+
     let Account () =
         let resJsonStr = Var.Create ""
         Templates.AccountTemplate.AccountForm()
@@ -149,6 +165,7 @@ module Client =
                 async {
                     let! res = Server.DoFollow followID
                     Console.Log(res)
+                    JS.Window.Location.Reload()
                 }
                 |> Async.StartImmediate
             )
@@ -159,10 +176,10 @@ module Client =
                 async {
                     let! res = Server.DoUnfollow unfollowID
                     Console.Log(res)
+                    JS.Window.Location.Reload()
                 }
                 |> Async.StartImmediate
             )
-            
             .Doc()
 
     let Twitter () =
@@ -178,7 +195,8 @@ module Client =
                 Console.Log(prop)
                 async {
                     let! res = Server.DoTweet prop
-                    resJsonStr := res         
+                    resJsonStr := res
+                    JS.Window.Location.Reload()         
                 }
                 |> Async.StartImmediate
             )
@@ -192,12 +210,60 @@ module Client =
                 Console.Log(prop)
                 async {
                     let! res = Server.DoReTweet prop
-                    resJsonStr := res         
+                    resJsonStr := res  
+                    JS.Window.Location.Reload()       
                 }
                 |> Async.StartImmediate
             )
-            .Result(resJsonStr.View)
             .Doc()
 
+    // let TweetsListString operation = 
+    //     async {
+    //         let res = Server.getTweetsListString operation ""
+    //         return res
+    //     }
+    //     |> Async.RunSynchronously
 
+    // let TweetsList operation = 
+    //     async {
+    //         let content = Server.getTweetsList operation ""
+    //         return List.map (fun cnt -> 
+    //             let txt = cnt?text
+    //             let tweetId = cnt?tweetId
+    //             let userId = cnt?userId
+    //             let timestamp = cnt?timestamp
+    //             li [] [
+    //                 a [attr.``class`` "list-group-item"] [
+    //                     text txt
+    //                     text tweetId
+    //                     text userId
+    //                     text timestamp
+    //                 ]
+    //             ]
+    //         ) content
+    //     }
+    //     |> Async.RunSynchronously
+        
+    // let Twitter2 () =
+    //     Templates.TwitterTemplate.TwitterForm2()
+    //         .TwitterList1(TweetsList "all")
+    //         .TwitterList2(TweetsList "subscribe")
+    //         .TwitterList3(TweetsList "all")
+    //         .TwitterList4(TweetsList "all")
+    //         .OnTabQuery(fun e ->
+    //             let tab = e.Vars.tabSearch.Value
+    //             let dom = TweetsListString "tab" //"mention"
+    //             Console.Log(dom)
+    //             let ele = JS.Document.GetElementById("test")
+    //             ele.InnerHTML <- dom
+    //         )
+    //         .OnMentionQuery(fun e ->
+    //             let tab = e.Vars.tabSearch.Value
+    //             let dom = TweetsListString "mention"
+    //             Console.Log(dom)
+    //             let ele = JS.Document.GetElementById("test")
+    //             ele.InnerHTML <- dom
+    //         )
+    //         .Doc()
+            
     

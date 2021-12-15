@@ -1,9 +1,10 @@
 (function(Global)
 {
  "use strict";
- var WebSharper,Client,TwitterClone_Templates,Strings,IntelliFactory,Runtime,Utils,console,Concurrency,Remoting,AjaxRemotingProvider,UI,Var$1,Templating,Runtime$1,Server,ProviderBuilder,Handler,TemplateInstance,JSON,Doc,AttrProxy,Client$1,Templates;
+ var WebSharper,Client,Templating,TwitterClone_Templates,Strings,IntelliFactory,Runtime,Utils,console,Concurrency,Remoting,AjaxRemotingProvider,UI,Var$1,Templating$1,Runtime$1,Server,ProviderBuilder,Handler,TemplateInstance,List,Doc,AttrProxy,JSON,Client$1,Templates;
  WebSharper=Global.WebSharper=Global.WebSharper||{};
  Client=WebSharper.Client=WebSharper.Client||{};
+ Templating=WebSharper.Templating=WebSharper.Templating||{};
  TwitterClone_Templates=Global.TwitterClone_Templates=Global.TwitterClone_Templates||{};
  Strings=WebSharper&&WebSharper.Strings;
  IntelliFactory=Global.IntelliFactory;
@@ -15,18 +16,19 @@
  AjaxRemotingProvider=Remoting&&Remoting.AjaxRemotingProvider;
  UI=WebSharper&&WebSharper.UI;
  Var$1=UI&&UI.Var$1;
- Templating=UI&&UI.Templating;
- Runtime$1=Templating&&Templating.Runtime;
+ Templating$1=UI&&UI.Templating;
+ Runtime$1=Templating$1&&Templating$1.Runtime;
  Server=Runtime$1&&Runtime$1.Server;
  ProviderBuilder=Server&&Server.ProviderBuilder;
  Handler=Server&&Server.Handler;
  TemplateInstance=Server&&Server.TemplateInstance;
- JSON=Global.JSON;
+ List=WebSharper&&WebSharper.List;
  Doc=UI&&UI.Doc;
  AttrProxy=UI&&UI.AttrProxy;
+ JSON=Global.JSON;
  Client$1=UI&&UI.Client;
  Templates=Client$1&&Client$1.Templates;
- Client.Twitter$185$23=function(resJsonStr)
+ Client.Twitter$203$23=function(resJsonStr)
  {
   return function(e)
   {
@@ -44,12 +46,13 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoReTweet:2079912140",[prop]),function(a)
     {
      resJsonStr.Set(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
   };
  };
- Client.Twitter$171$21=function(resJsonStr)
+ Client.Twitter$188$21=function(resJsonStr)
  {
   return function(e)
   {
@@ -67,6 +70,7 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoTweet:2079912140",[prop]),function(a)
     {
      resJsonStr.Set(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
@@ -74,9 +78,9 @@
  };
  Client.Twitter=function()
  {
-  var resJsonStr,b,R,_this,t,t$1,p,i;
+  var resJsonStr,b,t,t$1,p,i;
   resJsonStr=Var$1.Create$1("");
-  return(b=(R=resJsonStr.get_View(),(_this=(t=(t$1=new ProviderBuilder.New$1(),(t$1.h.push(Handler.EventQ2(t$1.k,"ontweet",function()
+  return(b=(t=(t$1=new ProviderBuilder.New$1(),(t$1.h.push(Handler.EventQ2(t$1.k,"ontweet",function()
   {
    return t$1.i;
   },function(e)
@@ -95,6 +99,7 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoTweet:2079912140",[prop]),function(a)
     {
      resJsonStr.Set(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
@@ -117,16 +122,13 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoReTweet:2079912140",[prop]),function(a)
     {
      resJsonStr.Set(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
-  })),t)),(_this.h.push({
-   $:2,
-   $0:"result",
-   $1:R
-  }),_this))),(p=Handler.CompleteHoles(b.k,b.h,[["tweetcontent",0],["tweettags",0],["tweetmentions",0],["tweetid",0],["retweettags",0],["retweetmentions",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.twitterform(p[0])),b.i=i,i))).get_Doc();
+  })),t)),(p=Handler.CompleteHoles(b.k,b.h,[["tweetcontent",0],["tweettags",0],["tweetmentions",0],["tweetid",0],["retweettags",0],["retweetmentions",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.twitterform(p[0])),b.i=i,i))).get_Doc();
  };
- Client.Account$155$24=function()
+ Client.Account$172$24=function()
  {
   return function(e)
   {
@@ -138,12 +140,13 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoUnfollow:2079912140",[unfollowID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
   };
  };
- Client.Account$145$22=function()
+ Client.Account$161$22=function()
  {
   return function(e)
   {
@@ -155,6 +158,7 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoFollow:2079912140",[followID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
@@ -177,6 +181,7 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoFollow:2079912140",[followID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
@@ -193,12 +198,20 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoUnfollow:2079912140",[unfollowID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
   })),t)),(p=Handler.CompleteHoles(b.k,b.h,[["followid",0],["unfollowid",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.accountform(p[0])),b.i=i,i))).get_Doc();
  };
- Client.Register$125$24=function()
+ Client.FollowList=function(userId)
+ {
+  return List.map(function(txt)
+  {
+   return Doc.Element("div",[],[Doc.Element("a",[AttrProxy.Create("class","list-group-item")],[Doc.TextNode(txt)])]);
+  },(new AjaxRemotingProvider.New()).Sync("TwitterClone:WebSharper.Server.getFollowersList:1044191176",[userId]));
+ };
+ Client.Register$127$24=function()
  {
   return function(e)
   {
@@ -247,7 +260,7 @@
    })),null);
   })),t)),(p=Handler.CompleteHoles(b.k,b.h,[["registerusername",0],["registeruseremail",0],["registeruserpass",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.loginblock(p[0])),b.i=i,i))).get_Doc();
  };
- Client.Login$104$21=function()
+ Client.Login$106$21=function()
  {
   return function(e)
   {
@@ -299,7 +312,7 @@
   Templates.LoadLocalTemplates("");
   Doc.RunById("main",copyTheInput);
  };
- Client.Db$70$22=function()
+ Client.Db$72$22=function()
  {
   return function()
   {
@@ -331,7 +344,7 @@
    $1:"Sccess!"
   }),_this)),(p=Handler.CompleteHoles(b.k,b.h,[["texttoreverse",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.mainform(p[0])),b.i=i,i))).get_Doc();
  };
- Client.guest$38$26=Runtime.Curried3(function($1,$2,$3)
+ Client.guest$40$26=Runtime.Curried3(function($1,$2,$3)
  {
   var b;
   return Concurrency.Start((b=null,Concurrency.Delay(function()
@@ -357,7 +370,7 @@
    };
   })],[Doc.TextNode("login")])]);
  };
- Client.LoggedInUser$23$26=Runtime.Curried3(function($1,$2,$3)
+ Client.LoggedInUser$25$26=Runtime.Curried3(function($1,$2,$3)
  {
   var b;
   return Concurrency.Start((b=null,Concurrency.Delay(function()
@@ -386,6 +399,26 @@
     })),null);
    };
   })],[Doc.TextNode("logout")])]);
+ };
+ Templating.Twitter2$99$28=function()
+ {
+  return function(e)
+  {
+   var mention,dom;
+   mention=e.Vars.Hole("mentionsearch").$1.Get();
+   dom=(new AjaxRemotingProvider.New()).Sync("TwitterClone:WebSharper.Server.getTweetsListString:-1557391100",["mention",mention]);
+   self.document.getElementById("TwitterList4").innerHTML=dom;
+  };
+ };
+ Templating.Twitter2$90$24=function()
+ {
+  return function(e)
+  {
+   var tag,dom;
+   tag=e.Vars.Hole("tabsearch").$1.Get();
+   dom=(new AjaxRemotingProvider.New()).Sync("TwitterClone:WebSharper.Server.getTweetsListString:-1557391100",["tag",tag]);
+   self.document.getElementById("TwitterList3").innerHTML=dom;
+  };
  };
  TwitterClone_Templates.twitterform=function(h)
  {

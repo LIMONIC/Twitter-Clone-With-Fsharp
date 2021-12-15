@@ -65,38 +65,87 @@
         </div>
     </nav>
     <div class="container">
-        <div ws-replace="Body">
-            <div ws-template="TwitterForm">
-                <ul class="nav nav-tabs">
-                    <li class="active"><a data-toggle="tab" href="#tweettab">Tweet</a></li>
-                    <li><a data-toggle="tab" href="#retweettab">ReTweet</a></li>
-                </ul>
-                  
-                <div class="tab-content">
-                    <div id="tweettab" class="tab-pane fade in active">
-                        <div class="form-control formHeight">
-                            <textarea class="form-control inputstyle" rows="5" ws-var="tweetContent" placeholder="Tweet Content"></textarea>
-                            <input ws-var="tweetTags" type="text" class="form-control inputstyle" id="tweetTags" placeholder="Tags">
-                            <input ws-var="tweetMentions" type="text" class="form-control inputstyle" id="tweetMentions" placeholder="Mentions">
-                            <button class="btn btn-lg btn-primary" ws-onclick="OnTweet" style="float: right;">Tweet</button>
+        <div style="width: 50%; float: left;">
+            <div ws-replace="Body">
+                <div ws-template="TwitterForm">
+                    <ul class="nav nav-tabs">
+                        <li class="active"><a data-toggle="tab" href="#tweettab">Tweet</a></li>
+                        <li><a data-toggle="tab" href="#retweettab">ReTweet</a></li>
+                    </ul>   
+                    <div class="tab-content">
+                        <div id="tweettab" class="tab-pane fade in active">
+                            <div class="form-control formHeight">
+                                <textarea class="form-control inputstyle" rows="5" ws-var="tweetContent" placeholder="Tweet Content"></textarea>
+                                <input ws-var="tweetTags" type="text" class="form-control inputstyle" id="tweetTags" placeholder="Tags">
+                                <input ws-var="tweetMentions" type="text" class="form-control inputstyle" id="tweetMentions" placeholder="Mentions">
+                                <button class="btn btn-lg btn-primary" ws-onclick="OnTweet" style="float: right;">Tweet</button>
+                            </div>
+                        </div>
+                        <div id="retweettab" class="tab-pane fade">
+                            <div class="form-control formHeight" style="height: 220px;">
+                                <input ws-var="tweetID" type="text" class="form-control inputstyle" id="tweetID" placeholder="tweetID">
+                                <input ws-var="reTweetTags" type="text" class="form-control inputstyle" id="reTweetTags" placeholder="Tags">
+                                <input ws-var="reTweetMentions" type="text" class="form-control inputstyle" id="reTweetMentions" placeholder="Mentions">
+                                <button class="btn btn-lg btn-primary" ws-onclick="OnReTweet" style="float: right;">ReTweet</button>
+                            </div>
                         </div>
                     </div>
-                    <div id="retweettab" class="tab-pane fade">
-                        <div class="form-control formHeight" style="height: 220px;">
-                            <input ws-var="tweetID" type="text" class="form-control inputstyle" id="tweetID" placeholder="tweetID">
-                            <input ws-var="reTweetTags" type="text" class="form-control inputstyle" id="reTweetTags" placeholder="Tags">
-                            <input ws-var="reTweetMentions" type="text" class="form-control inputstyle" id="reTweetMentions" placeholder="Mentions">
-                            <button class="btn btn-lg btn-primary" ws-onclick="OnReTweet" style="float: right;">ReTweet</button>
-                        </div>
-                    </div>
-                </div>
-                <hr />
-                <div class="jumbotron"><h1>${Result}</h1></div>
-                <div class="container tweetsList" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 10px;">
-                    <ol ws-hole="twitterList"></ol>
+    
+                    <hr />
+                    
                 </div>
             </div>
         </div>
+        <div class="container" style="width: 45%; float: right;">
+            <h5>Tweets List:</h5>
+            <div style="width: 100%;">
+                <div ws-replace="Body2">
+                    <div ws-template="TwitterForm2">
+                        <ul class="nav nav-tabs">
+                            <li class="active"><a data-toggle="tab" href="#alltab">All</a></li>
+                            <li ><a data-toggle="tab" href="#subtab">Subscribe</a></li>
+                            <li><a data-toggle="tab" href="#tabtab">Tab Search</a></li>
+                            <li><a data-toggle="tab" href="#mentiontab">Mention Search</a></li>
+                        </ul>   
+                        <div class="tab-content">
+                            <div id="alltab" class="tab-pane fade in active">
+                                <div class="form-control formHeight">
+                                    <div class="list-group tweetsList"  ws-hole = "TwitterList1" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 4px; width: 100%;">
+                    
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="subtab" class="tab-pane fade">
+                                <div class="form-control formHeight">
+                                    <div class="list-group tweetsList" ws-hole = "TwitterList2" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 4px; width: 100%;">
+                    
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="tabtab" class="tab-pane fade">
+                                <div class="form-control formHeight">
+                                    <input ws-var="tabSearch" type="text" class="form-control inputstyle" id="tabSearch" placeholder="query according a tab">
+                                    <button class="btn btn-lg btn-primary" ws-onclick="OnTabQuery" style="float: right; margin-bottom: 20px;">Query</button>
+                                    <div class="list-group tweetsList" id = "TwitterList3" ws-hole = "TwitterList3" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 4px; width: 100%; margin-top: 10px;">
+                    
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="mentiontab" class="tab-pane fade">
+                                <div class="form-control formHeight">
+                                    <input ws-var="mentionSearch" type="text" class="form-control inputstyle" id="mentionSearch" placeholder="query according a mention">
+                                    <button class="btn btn-lg btn-primary" ws-onclick="OnMentionQuery" style="float: right;  margin-bottom: 20px;">Query</button>
+                                    <div class="list-group tweetsList" id = "TwitterList4" ws-hole = "TwitterList4" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 4px; width: 100%; margin-top: 10px;">
+                    
+                                    </div>
+                                </div>
+                            </div>
+                        </div>  
+                    </div>
+                </div>
+            </div>
+        </div>
+        
     </div>
     
     <script ws-replace="scripts"></script>

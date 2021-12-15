@@ -65,9 +65,9 @@
         </div>
     </nav>
     <div class="container">
-        <div ws-replace="Body">
-            <div ws-template="AccountForm" >
-                <div style="width: 50%; float: left;">
+        <div style="width: 50%; float: left;">
+            <div ws-replace="Body">
+                <div ws-template="AccountForm">
                     <ul class="nav nav-tabs">
                         <li class="active"><a data-toggle="tab" href="#followtab">Follow</a></li>
                         <li><a data-toggle="tab" href="#unfollowtab">Unfollow</a></li>
@@ -87,14 +87,17 @@
                         </from>
                     </div>
                 </div>
-                <div class="container tweetsList" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 10px; width: 45%;">
-                    <ul ws-hole="FollowList">
-
-                    </ul>
-                </div>
-                <hr />
+                
             </div>
         </div>
+        <div class="container " style="width: 45%; float: right;">
+            <h5>My Follow List:</h5>
+            <div class="list-group tweetsList" ws-hole="FollowList" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 4px; width: 100%;">
+
+            </div>
+        </div>
+        
+        
     </div>
     
     <script ws-replace="scripts"></script>
