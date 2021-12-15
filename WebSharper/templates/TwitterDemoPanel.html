@@ -1,6 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" />
@@ -43,62 +40,10 @@
             padding: 3px 12px;
         }
     </style>
-</head>
+
 <body>
-    <!-- Static navbar -->
-    <nav class="navbar navbar-default navbar-static-top">
-        <div class="container">
-            <div class="navbar-header">
-                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-                    <span class="sr-only">Toggle navigation</span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                </button>
-                <a class="navbar-brand" href="#">Your App</a>
-            </div>
-            <div id="navbar" class="navbar-collapse collapse">
-                <ul class="nav navbar-nav" ws-hole="MenuBar"></ul>
-                <ul class="nav navbar-nav navbar-right">
-                    <li><a href="https://websharper.com">websharper.com</a></li>
-                </ul>
-            </div><!--/.nav-collapse -->
-        </div>
-    </nav>
-    <div class="container">
-        <div ws-replace="Body">
-            <div ws-template="TwitterForm">
-                <ul class="nav nav-tabs">
-                    <li class="active"><a data-toggle="tab" href="#tweettab">Tweet</a></li>
-                    <li><a data-toggle="tab" href="#retweettab">ReTweet</a></li>
-                </ul>
-                  
-                <div class="tab-content">
-                    <div id="tweettab" class="tab-pane fade in active">
-                        <div class="form-control formHeight">
-                            <textarea class="form-control inputstyle" rows="5" ws-var="tweetContent" placeholder="Tweet Content"></textarea>
-                            <input ws-var="tweetTags" type="text" class="form-control inputstyle" id="tweetTags" placeholder="Tags">
-                            <input ws-var="tweetMentions" type="text" class="form-control inputstyle" id="tweetMentions" placeholder="Mentions">
-                            <button class="btn btn-lg btn-primary" ws-onclick="OnTweet" style="float: right;">Tweet</button>
-                        </div>
-                    </div>
-                    <div id="retweettab" class="tab-pane fade">
-                        <div class="form-control formHeight" style="height: 220px;">
-                            <input ws-var="tweetID" type="text" class="form-control inputstyle" id="tweetID" placeholder="tweetID">
-                            <input ws-var="reTweetTags" type="text" class="form-control inputstyle" id="reTweetTags" placeholder="Tags">
-                            <input ws-var="reTweetMentions" type="text" class="form-control inputstyle" id="reTweetMentions" placeholder="Mentions">
-                            <button class="btn btn-lg btn-primary" ws-onclick="OnReTweet" style="float: right;">ReTweet</button>
-                        </div>
-                    </div>
-                </div>
-                <hr />
-                <div class="jumbotron"><h1>${Result}</h1></div>
-                <div class="container tweetsList" style="overflow-y: auto; border: #66afe9 solid 1px; border-radius: 10px;">
-                    <ol ws-hole="twitterList"></ol>
-                </div>
-            </div>
-        </div>
-    </div>
-    
+<div id="twitterCard"></div>
+<div class="jumbotron" ws-template="twitterdemo" style="background-color: blue"><h1>${Result}</h1></div>
     <script ws-replace="scripts"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open WebSharper.AspNetCore
-open Server
+open WebSharper.AspNetCore.WebSocket
 
 type Startup() =
 
@@ -24,7 +24,17 @@ type Startup() =
 
         app.UseAuthentication()
             .UseStaticFiles()
-            .UseWebSharper()
+            .UseWebSockets()
+            .UseWebSharper(
+                fun builder ->
+                    builder.UseWebSocket(
+                        "ws",
+                        fun wsBuilder ->
+                            wsBuilder
+                                .Use(WebSocketServiceProvider.Start())
+                                .JsonEncoding(JsonEncoding.Readable) |> ignore
+                )
+            )
             .Run(fun context ->
                 context.Response.StatusCode <- 404
                 context.Response.WriteAsync("Page not found"))

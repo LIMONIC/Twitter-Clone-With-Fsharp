@@ -4,7 +4,8 @@ open WebSharper
 open WebSharper.Sitelets
 open WebSharper.UI
 open WebSharper.UI.Server
-open WebSharper.UI.Html    
+open WebSharper.UI.Html
+open WebSharper.AspNetCore.WebSocket
 open WebSharper.JavaScript
 open FSharp.Data
 open FSharp.Data.JsonExtensions
@@ -119,6 +120,9 @@ module Site =
         
 
     let Twitter (ctx: Context<EndPoint>) =
+        let buildEndPoint(url: string): WebSocketEndpoint<Res, Push> =
+                    WebSocketEndpoint.Create(url, "/ws", JsonEncoding.Readable)
+        let ep = buildEndPoint(ctx.RequestUri.ToString()) // WebSocket Endpoint
         async {
             let! username = ctx.UserSession.GetLoggedInUser()
             let welcomeContent = 
@@ -134,9 +138,15 @@ module Site =
                             h1 [] [text ("Welcome back, " + userinfo.[0] + "!")]
                             client <@Client.LoggedInUser()@>
                         ]
+//            let tweetsDemoPanel =
+//                div [attr.``class`` "jumbotron"; attr.``id`` "tweetsDemoPanel"] [
+//                    h1 [] [text ("Result")]
+//                    div [] [client <@ TweetPushProcess.ProcessBinding(ep) @>] 
+//                ]
             return! Templating.Twitter ctx EndPoint.Twitter [
                 welcomeContent
-                div [] [client <@ Client.Twitter() @>]
+                div [] [client <@ Client.Twitter(ep) @>]
+//                tweetsDemoPanel
             ]
         }
 

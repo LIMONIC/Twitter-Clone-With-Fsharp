@@ -11,173 +11,22 @@ open FSharp
 open FSharp.Data
 open FSharp.Data.JsonExtensions
 open WebSharper.Json
+open Utils
+open Database
 
 module Server =
-    // database
-    let databaseFilename = "Twitter.sqlite"
-    let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename  
-    let connection = new SQLiteConnection(connectionString)
+
     //printfn "%s" connection.FileName
 
     // Debug printout swithces
     let debug = true
-    let dbDebug = true
+    
     let testInfo = true
 
-    // Active user map <userId, userAddress>
-    let mutable authedUserMap = Map.empty<string, string>
-
-    type Utils() =
-    // Stringified JSON handling
-        member this.parseRes status msg content = 
-            sprintf """{"status": "%s","msg":"%s","content":%s}""" status msg content
-
-        /// Generate a json string containing all tweets by SQLiteDataReader
-        member this.getTweetJsonStr (reader : SQLiteDataReader) = 
-            let mutable content = "["
-            if  reader.HasRows then
-                while reader.Read() do
-                    let tweetInfo = 
-                        sprintf """{"text": "%s", "tweetId":"%s", "userId":"%s", "timestamp":"%s"}"""
-                            (reader.["content"].ToString())
-                            (reader.["id"].ToString())
-                            (reader.["publish_user_id"].ToString())
-                            (System.Convert.ToDateTime(reader.["timestamp"]).ToString("s"))
-                    content <- content + tweetInfo + ", "
-                content.Substring(0, content.Length - 2) + "]"
-            else 
-                content + "]"
-        /// Generate SHA1 for ID
-        member this.getSHA1Str input = 
-            let removeChar (stripChars:string) (text:string) =
-                text.Split(stripChars.ToCharArray(), StringSplitOptions.RemoveEmptyEntries) |> String.Concat
-            System.Convert.ToString(DateTime.Now) + input
-            |> Encoding.ASCII.GetBytes
-            |> (new SHA1Managed()).ComputeHash
-            |> System.BitConverter.ToString
-            |> removeChar "-"
-        /// compare elements in two lists and return same elements as list
-        member this.compare2Lists oper l1 l2 = 
-            let mutable list = []  
-            l1 
-            |> List.map (fun x -> (x, List.tryFind (oper x) l2))
-            |> List.iter (function (x, None) -> () | (x, Some y) -> list <- list@[y])
-            list
-        /// Get a list from query result containing followers
-        member this.getUserList columnName (reader : SQLiteDataReader) =
-            let mutable followersList = []
-            if  reader.HasRows then
-                while reader.Read() do
-                    let follower = reader.[$"{columnName}"].ToString()
-                    followersList <- followersList @ [follower]
-            followersList
-    let Utils = Utils()
-
-    type DB() =
-    // DB initiate
-        member this.initDb _ = 
-            let databaseFilename = "Twitter.sqlite"
-            let dbPath = @".\" + databaseFilename;
-            // if DB file is not exist, initialize DB
-            if not(File.Exists(dbPath)) then
-                if dbDebug then printfn $"[Info]DB doesn't exist {dbPath}. Initialize database..." 
-                let connectionString = sprintf "Data Source=%s;Version=3;" databaseFilename
-                // 0. Create Database
-                SQLiteConnection.CreateFile(databaseFilename)
-                // 1. Init Database
-                // 1.a. open connection
-                let connection = new SQLiteConnection(connectionString)
-                connection.Open()
-                // 1.b. Create tables
-                let structureSql =
-                    "create table Tweet (id TEXT, content TEXT, publish_user_id TEXT, timestamp TEXT);" +
-                    "create table User (id TEXT, email TEXT, nick_name TEXT, password TEXT);" +
-                    "create table UserRelation (id TEXT, user_id TEXT, follower_id TEXT);" +
-                    "create table HashTag (id TEXT, tag_name TEXT, tweet_id TEXT);" +
-                    "create table Mention (id TEXT, user_id TEXT, tweet_id TEXT)"
-                let structureCommand = new SQLiteCommand(structureSql, connection)
-                structureCommand.ExecuteNonQuery() |> ignore
-
-    // DB operations
-        member this.dbQuery queryStr = 
-            let selectCommand = new SQLiteCommand(queryStr, connection)
-            try 
-                if dbDebug then printfn $"dbQuery {selectCommand.ExecuteScalar().ToString()}"
-                selectCommand.ExecuteScalar().ToString()
-            with | _ -> "error"
-
-        member this.dbQueryMany queryStr =
-            let selectCommand = new SQLiteCommand(queryStr, connection)
-            let reader = selectCommand.ExecuteReader()
-            reader
-
-        member this.dbInsert queryStr =
-            let insertCommand = new SQLiteCommand(queryStr, connection)
-            insertCommand.ExecuteNonQuery()
-
-    // DB record validation 
-        member this.isUserExist userId =
-            let res = this.dbQuery $"select id from User where id = '{userId}'"
-            if dbDebug then printfn $"-[DEBUG][isUserExist] res = {res}"
-            not (res = "error")
-
-        member this.isTweetIdExist tweetId = 
-            let res = this.dbQuery $"select id from Tweet where id = '{tweetId}'"
-            if dbDebug then printfn $"-[DEBUG][isValidTweetId] res = {res}"
-            not (res = "error")
-
-        member this.isFollowed userId userIdTofollow = 
-            let res = this.dbQuery $"select id from UserRelation where follower_id = '{userId}' and user_id='{userIdTofollow}'"
-            if dbDebug then printfn $"-[DEBUG][isFollowed] res = {res}"
-            not (res = "error")
-
-    // DB queries
-        /// Return a json string containing all tweets subscribed by a certain user
-        member this.getSubscribedTweets userId =
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from UserRelation ur, Tweet t where ur.user_id=t.publish_user_id AND ur.follower_id='{userId}' ORDER BY timestamp ASC"
-            |> this.dbQueryMany
-            |> Utils.getTweetJsonStr
-
-        /// Return the last 20 tweets
-        member this.getLast20Tweets _ =
-            "select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t ORDER BY timestamp ASC limit 20"
-            |> this.dbQueryMany
-            |> Utils.getTweetJsonStr
-
-        member this.getTweetsRelatedToTag tagName = 
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from HashTag ht, Tweet t where ht.tweet_id=t.id AND ht.tag_name='{tagName}' ORDER BY timestamp ASC"
-            |> this.dbQueryMany
-            |> Utils.getTweetJsonStr
-
-        member this.getTweetsMentionById userId = 
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from Mention m, Tweet t where m.user_id='{userId}' AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
-            |> this.dbQueryMany
-            |> Utils.getTweetJsonStr
-
-        member this.getTweetsMentionByName userName = 
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from User u, Mention m, Tweet t where u.nick_name = '{userName}' AND u.id=m.user_id AND m.tweet_id=t.id GROUP BY t.id ORDER BY timestamp ASC"
-            |> this.dbQueryMany
-            |> Utils.getTweetJsonStr
-
-        member this.getTweetsById tweetId = 
-            $"select t.content, t.id, t.publish_user_id, t.timestamp from Tweet t where id='{tweetId}'"
-            |> this.dbQueryMany
-            |> Utils.getTweetJsonStr
-
-        member this.getFollowers userId = 
-            $"SELECT follower_id FROM UserRelation WHERE user_id='{userId}'"
-            |> this.dbQueryMany
-            |> Utils.getUserList "follower_id"
-
-        member this.getMentionedUsers tweetId = 
-            $"select DISTINCT user_id from Mention where tweet_id='{tweetId}'"
-            |> this.dbQueryMany
-            |> Utils.getUserList "user_id"
-    let DB = DB()
-
     type HandlerImpl() =
-        member this.isUserLoggedIn userId = 
-            authedUserMap.ContainsKey(userId)
+        member this.isUserLoggedIn userId =
+            let ctx = Web.Remoting.GetContext()
+            ctx.UserSession.IsAvailable
 
     // Register 
         member this.registerImpl (userId, password, nickName, email, (msg: byref<_>)) =
@@ -199,7 +48,8 @@ module Server =
         member this.loginImpl (userId, password, (msg: byref<_>)) =
             let mutable flag = false
             // check if already loged in
-            if authedUserMap.ContainsKey(userId) then
+            let ctx = Web.Remoting.GetContext()
+            if ctx.UserSession.IsAvailable then
                 msg <- $"User {userId} has already logged in."
                 flag <- true
             // find if user exist
@@ -219,7 +69,8 @@ module Server =
         member this.logoutImpl (userId, password, (msg: byref<_>)) =
             let mutable flag = false
             // check if already loged in
-            if not (authedUserMap.ContainsKey(userId)) then
+            let ctx = Web.Remoting.GetContext()
+            if not (ctx.UserSession.IsAvailable) then
                 msg <- $"User {userId} has not logged in."
             // find if user exist
             if not flag && not (DB.isUserExist userId) then 
@@ -231,7 +82,6 @@ module Server =
                     msg <- "Logout Failed. Please try again."
                 else
                     msg <- $"User {userId} logout Successed."
-                    authedUserMap <- authedUserMap.Remove(userId)
                     flag <- true
             flag
 
@@ -422,11 +272,11 @@ module Server =
         let mutable status = "error"
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
+        let ctx = Web.Remoting.GetContext()
         async {
             if Hi.loginImpl(userId, password, &msg) then
-                authedUserMap <- authedUserMap.Add(userId, "remoteActorAddr")
-                let ctx = Web.Remoting.GetContext()
-                do! ctx.UserSession.LoginUser(userId + "," + password)
+//                authedUserMap <- authedUserMap.Add(userId, "") // TODO: login token
+                do! ctx.UserSession.LoginUser(userId + "," + password, false)
                 status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
@@ -457,6 +307,7 @@ module Server =
         async {
             let ctx = Web.Remoting.GetContext()
             let! session = ctx.UserSession.GetLoggedInUser()
+            printfn "%A" session
             let userinfo = 
                 match session with
                 | None -> [|"";""|]
@@ -464,12 +315,14 @@ module Server =
             let userId = Array.get userinfo 0
             let password = Array.get userinfo 1
             let mutable tweetId = Utils.getSHA1Str ""
-            let content = parsedProps?content.AsString()
-            let tag = parsedProps?tag.AsArray()
-            let mention = parsedProps?mention.AsArray()
-            if Hi.tweetAndRetweetImpl (&tweetId, userId, content, tag, mention, &msg, "tweet") then
+            let content = try parsedProps?content.AsString() with |_ -> ""
+            let hashtag = try parsedProps?tag.AsArray() with |_ -> [||]
+            let mention = try parsedProps?mention.AsArray() with |_ -> [||]
+            if Hi.tweetAndRetweetImpl (&tweetId, userId, content, hashtag, mention, &msg, "tweet") then
                 status <- "success"
-            resJsonStr <- Utils.parseRes status msg """[]"""
+                msg <- "Tweet sent."
+                // push
+            resJsonStr <- Utils.parseRes status msg (sprintf """[{"userId": "%s", "tweetId": "%s"}]""" userId tweetId)
             return resJsonStr
         }
 
@@ -496,7 +349,8 @@ module Server =
             let mention = parsedProps?mention.AsArray()
             if Hi.tweetAndRetweetImpl (&tweetId, userId, retweetId, tag, mention, &msg, "retweet") then
                 status <- "success"
-            resJsonStr <- Utils.parseRes status msg """[]"""
+                msg <- "Retweet success."
+            resJsonStr <- Utils.parseRes status msg (sprintf """[{"userId": "%s", "tweetId": "%s"}]""" userId tweetId)
             return resJsonStr
         }
         
