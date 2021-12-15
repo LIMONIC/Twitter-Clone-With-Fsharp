@@ -39,5 +39,3 @@ module TweetPushProcess =
                 }
             }
         wsConnect.AsPromise().Then(fun x -> wsServiceProvider <- Some(x)) |> ignore
-        Templates.TwitterDemoTemplate.twitterdemo()
-            .Doc()

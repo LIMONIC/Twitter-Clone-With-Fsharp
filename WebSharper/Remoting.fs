@@ -321,7 +321,6 @@ module Server =
             if Hi.tweetAndRetweetImpl (&tweetId, userId, content, hashtag, mention, &msg, "tweet") then
                 status <- "success"
                 msg <- "Tweet sent."
-                // push
             resJsonStr <- Utils.parseRes status msg (sprintf """[{"userId": "%s", "tweetId": "%s"}]""" userId tweetId)
             return resJsonStr
         }
@@ -394,3 +393,84 @@ module Server =
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
         }
+
+    [<Rpc>]
+    let getFollowersList (userId:string) =   
+        if debug then printfn $"[DEBUG]getFollowerHandler receive request" 
+        async {
+            let res = DB.getFollows (userId)
+            printfn $"{res}"
+            return res
+        }
+        |> Async.RunSynchronously
+
+    [<Rpc>]
+    let getTweetsListString (operation:string) (props:string)=   
+        if debug then printfn $"[DEBUG]getTweetsListHandler receive operation:{operation}, props:{props}" 
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            let ctx = Web.Remoting.GetContext()
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            let mutable tagId = ""
+            let mutable mention = ""
+            match operation with
+            | "mention" ->
+                mention <- props
+            | "tag" ->
+                tagId <- props
+            | _ -> 
+                mention <- ""
+            Hi.queryImpl(userId, operation, tagId, mention, &msg, &status, &resJsonStr)
+            let resparse = JsonValue.Parse(resJsonStr)
+            let content = resparse?content.AsArray() |> Array.toList
+            let mutable dom = ""
+            List.iter (fun cnt -> 
+                let txt = cnt?text.AsString()
+                let tweetId = cnt?tweetId.AsString()
+                let userId = cnt?userId.AsString()
+                let timestamp = cnt?timestamp.AsString()
+                dom <- dom + $"<div><a class = \"list-group-item\"><p>{tweetId}</p><p>{userId}</p><p>{timestamp}</p><p>{txt}</p></a></div>"
+            ) content
+            return dom
+        }
+        |> Async.RunSynchronously
+
+    [<Rpc>]
+    let getTweetsList (uid:string) (operation:string) (props:string)=   
+        if debug then printfn $"[DEBUG]getTweetsListHandler receive operation:{operation}, props:{props}" 
+        let mutable status = "error"
+        let mutable msg = "Internal error."
+        let mutable resJsonStr = ""
+        async {
+            // let ctx = Web.Remoting.GetContext()
+            // let! session = ctx.UserSession.GetLoggedInUser()
+            // let userinfo = 
+            //     match session with
+            //     | None -> [|"";""|]
+            //     | Some u -> u.Split(",")
+            // let userId = Array.get userinfo 0
+            let mutable tagId = ""
+            let mutable mention = ""
+            match operation with
+            | "mention" ->
+                mention <- props
+            | "tag" ->
+                tagId <- props
+            | _ -> 
+                mention <- ""
+            Hi.queryImpl(uid, operation, tagId, mention, &msg, &status, &resJsonStr)
+            let mutable dom = ""
+            let resparse = JsonValue.Parse(resJsonStr)
+            let content = resparse?content.AsArray() |> Array.toList
+            return content
+            
+        }
+        |> Async.RunSynchronously
+        

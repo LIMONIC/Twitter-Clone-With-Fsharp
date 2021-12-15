@@ -15,12 +15,10 @@ open WebSharper.Json
 
 type EndPoint =
     | [<EndPoint "/">] Twitter
-    // | [<EndPoint "/Twitter">] Twitter
     | [<EndPoint "/welcome">] Welcome
     | [<EndPoint "/register">] Register
     | [<EndPoint "/account">] Account
-    // and userId = 001
-    // and pass = "1234"
+
 
 module Templating =
     
@@ -38,24 +36,79 @@ module Templating =
             // "Register" => EndPoint.Register
         ]
 
-    
+    let FollowList (ctx: Context<EndPoint>) =
+        async {
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            return Client.FollowList userId
+        }
+        |> Async.RunSynchronously
 
-    let Main ctx action (title: string) (body: Doc list) =
-        Content.Page(
-            Templates.MainTemplate()
-                .Title(title)
-                .MenuBar(MenuBar ctx action)
-                .Body(body)
-                .Doc()
-        )
-        
-        
+    let TweetsListString operation = 
+        async {
+            let res = Server.getTweetsListString operation ""
+            return res
+        }
+        |> Async.RunSynchronously
 
-    let Twitter ctx action (body: Doc list) =
+    let TweetsList (ctx: Context<EndPoint>) operation = 
+        async {
+            let! session = ctx.UserSession.GetLoggedInUser()
+            let userinfo = 
+                match session with
+                | None -> [|"";""|]
+                | Some u -> u.Split(",")
+            let userId = Array.get userinfo 0
+            let content = Server.getTweetsList userId operation ""
+            return List.map (fun cnt -> 
+                let txt = cnt?text.AsString()
+                let tweetId = cnt?tweetId.AsString()
+                let userId = cnt?userId.AsString()
+                let timestamp = cnt?timestamp.AsString()
+                div [] [
+                    a [attr.``class`` "list-group-item"] [
+                        p [] [text ("tweetId: " + tweetId)]
+                        p [] [text ("userId: " + userId)]
+                        p [] [text ("Time: " + timestamp)]
+                        p [] [text txt]
+                    ]
+                ]
+            ) content
+        }
+        |> Async.RunSynchronously
+
+    let Twitter2 ctx =
+        Templates.TwitterTemplate.TwitterForm2()
+            .TwitterList1(TweetsList ctx  "all")
+            .TwitterList2(TweetsList ctx "subscribe")
+            .OnTabQuery(fun e ->
+                let tag = e.Vars.tabSearch.Value
+                let dom = Server.getTweetsListString "tag" tag
+                //TweetsListString "tab" //"mention
+                
+                let ele = JS.Document.GetElementById("TwitterList3")
+                
+                ele.InnerHTML <- dom
+            )
+            .OnMentionQuery(fun e ->
+                let mention = e.Vars.mentionSearch.Value
+                let dom = Server.getTweetsListString "mention" mention
+                let ele = JS.Document.GetElementById("TwitterList4")
+                ele.InnerHTML <- dom
+            )
+            .Doc()
+
+
+    let Twitter ctx action (body: Doc list) (body2: Doc list) =
         Content.Page(
             Templates.TwitterTemplate()
                 .MenuBar(MenuBar ctx action)
                 .Body(body)
+                .Body2(Twitter2 ctx)
                 .Doc()
         )
         
@@ -68,9 +121,6 @@ module Templating =
                 .Body(body)
                 .Doc()
         )
-        
-        
-        
         
     let Register ctx (body: Doc list)  =
         Content.Page(
@@ -87,6 +137,7 @@ module Templating =
                 .MenuBar(MenuBar ctx action)
                 //.MenuBar(MenuBar ctx action)
                 .Body(body)
+                .FollowList(FollowList ctx)
                 .Doc()
         )
         
@@ -146,7 +197,8 @@ module Site =
             return! Templating.Twitter ctx EndPoint.Twitter [
                 welcomeContent
                 div [] [client <@ Client.Twitter(ep) @>]
-//                tweetsDemoPanel
+            ] [
+                div [] []
             ]
         }
 

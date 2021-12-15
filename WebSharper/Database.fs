@@ -115,7 +115,12 @@ module Database =
             $"SELECT follower_id FROM UserRelation WHERE user_id='{userId}'"
             |> this.dbQueryMany
             |> Utils.getUserList "follower_id"
-
+            
+        member this.getFollows userId = 
+            $"SELECT user_id FROM UserRelation WHERE follower_id='{userId}'"
+            |> this.dbQueryMany
+            |> Utils.getUserList "user_id"
+            
         member this.getMentionedUsers tweetId = 
             $"select DISTINCT user_id from Mention where tweet_id='{tweetId}'"
             |> this.dbQueryMany

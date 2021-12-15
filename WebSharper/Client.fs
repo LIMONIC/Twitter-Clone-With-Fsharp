@@ -146,6 +146,19 @@ module Client =
                 )
             .Doc()
 
+    
+    let FollowList userId =
+        let array = Server.getFollowersList userId 
+        
+        List.map (fun txt -> 
+            div [] [
+                a [attr.``class`` "list-group-item"] [text txt]
+            ]
+        ) array
+
+    
+      
+
     let Account () =
         let resJsonStr = Var.Create ""
         Templates.AccountTemplate.AccountForm()
@@ -156,6 +169,7 @@ module Client =
                 async {
                     let! res = Server.DoFollow followID
                     Console.Log(res)
+                    JS.Window.Location.Reload()
                 }
                 |> Async.StartImmediate
             )
@@ -166,6 +180,7 @@ module Client =
                 async {
                     let! res = Server.DoUnfollow unfollowID
                     Console.Log(res)
+                    JS.Window.Location.Reload()
                 }
                 |> Async.StartImmediate
             )
@@ -265,6 +280,7 @@ module Client =
                 async {
                     let! res = Server.DoTweet prop
                     resJsonStr := res
+                    JS.Window.Location.Reload() 
                     // push tweet to followers and mentioned users
                     let resObj = JSON.Parse res
                     if resObj?status = "success" then
@@ -286,6 +302,7 @@ module Client =
                 async {
                     let! res = Server.DoReTweet prop
                     resJsonStr := res
+                    JS.Window.Location.Reload() 
                     // push tweet to followers and mentioned users
                     let resObj = JSON.Parse res
                     if resObj?status = "success" then
@@ -296,7 +313,7 @@ module Client =
                 }
                 |> Async.StartImmediate
             )
-            .Result(resJsonStr.View)
+//            .Result(resJsonStr.View)
             .Doc()
 
 

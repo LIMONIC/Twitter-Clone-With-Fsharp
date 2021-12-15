@@ -9,7 +9,7 @@ open Database
 
 module WebSocketServiceProvider =
     let debug = true
-    let mutable authedUserMap = Map.empty //    <WebSocketClient<Res, Push>, string>()
+    let mutable authedUserMap = Map.empty //    <WebSocketClient<Res, Push>, string>
     
     let Start(): StatefulAgent<Res, Push, int> =
         fun client -> async {
@@ -19,13 +19,13 @@ module WebSocketServiceProvider =
                 match session with
                 | None -> [|"";""|]
                 | Some u -> u.Split(",")
-            printfn "[client.Context] %A" (userinfo.[0])
+            if debug then printfn $"[Debug][client.Context]: {userinfo.[0]}"
             // Hashset "authedUserMap" contains all WebSocketClient that connected to the server
             if authedUserMap.ContainsKey(userinfo.[0]) = false then
                 authedUserMap <- authedUserMap.Add(userinfo.[0], client)
-            printfn "[authedUserMap Size] %A" (authedUserMap.Count)
+            if debug then printfn $"[Debug][authedUserMap Size] {authedUserMap.Count}"
             return 0, fun state msg ->
-                printfn $"state: {state}; msg: {msg}"
+                if debug then printfn $"state: {state}; msg: {msg}"
                 async {
                 match msg with
                 | Message data ->
@@ -35,18 +35,16 @@ module WebSocketServiceProvider =
                     match data with
                     | Push.Info (userId, tweetId) ->
                         let followers = DB.getFollowers userId
-                        if true then printfn $"[Debug][PushHandler]:targetUsers: {followers}"
+                        if debug then printfn $"[Debug][PushHandler]:targetUsers: {followers}"
                         let mentionedUsers = DB.getMentionedUsers tweetId
                         // remove duplicated users
                         let targetUsers = Set.union (Set.ofList followers) (Set.ofList mentionedUsers) |> Set.toList
-                        if true then printfn $"[Debug][PushHandler]:targetUsers: {targetUsers}"
-//                        let tweetProps: Props = Json.Deserialize props
-//                        let content = tweetProps.content
+                        if debug then printfn $"[Debug][PushHandler]:targetUsers: {targetUsers}"
                         // get tweet 
                         let mutable tweet = "[]"
                         tweet <- DB.getTweetsById tweetId
                         for u in targetUsers do
-                            if authedUserMap.ContainsKey(u) then
+                            if (not (u = null || u = "")) && authedUserMap.ContainsKey(u) then
                                 let targetClient = authedUserMap.[u]
                                 msg <- "success"
                                 status <- "New Tweet!"
