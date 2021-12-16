@@ -40,7 +40,7 @@
  Templates=Client$2&&Client$2.Templates;
  ClientSideJson=WebSharper&&WebSharper.ClientSideJson;
  Provider=ClientSideJson&&ClientSideJson.Provider;
- Client.Twitter$301$23=function(resJsonStr,wsServiceProvider)
+ Client.Twitter$269$23=function(resJsonStr,wsServiceProvider)
  {
   return function(e)
   {
@@ -84,7 +84,7 @@
    })),null);
   };
  };
- Client.Twitter$279$21=function(resJsonStr,wsServiceProvider)
+ Client.Twitter$247$21=function(resJsonStr,wsServiceProvider)
  {
   return function(e)
   {
@@ -170,7 +170,7 @@
           }
           $3=(div=self.document.getElementById("tweetsDemoPanel"),divCard=self.document.createElement("div"),divCard.setAttribute("class","card"),divCard.innerHTML=function($4)
           {
-           return $4("<div class=\"card\">\r\n                                                    <div class=\"card-body\">\r\n                                                        <h5 class=\"card-title\">"+Global.String(Arrays.get(content,0).userId)+"</h5>\r\n                                                        <p class=\"card-text\">"+Global.String(Arrays.get(content,0).text)+"</p>\r\n                                                        <ul class=\"list-group list-group-flush\">\r\n                                                          <li class=\"list-group-item fs-6 fw-light\">"+Global.String(Arrays.get(content,0).tweetId)+"</li>\r\n                                                          <li class=\"list-group-item fs-6 fw-light\">"+Global.String(Arrays.get(content,0).timestamp)+"</li>\r\n                                                        </ul>\r\n                                                    </div>\r\n                                                </div>");
+           return $4("<div class=\"card\">\r\n                                                    <div class=\"card-body\">\r\n                                                        <h5 class=\"card-title\">"+Global.String(Arrays.get(content,0).userId)+"</h5>\r\n                                                        <p class=\"card-text\">"+Global.String(Arrays.get(content,0).text)+"</p>\r\n                                                        <ul class=\"list-group list-group-flush\">\r\n                                                          <li class=\"list-group-item fs-6 fw-light\">tweetId: "+Global.String(Arrays.get(content,0).tweetId)+"</li>\r\n                                                          <li class=\"list-group-item fs-6 fw-light\">Time: "+Global.String(Arrays.get(content,0).timestamp)+"</li>\r\n                                                        </ul>\r\n                                                    </div>\r\n                                                </div>");
           }(Global.id),div.prepend.apply(div,[divCard]),Concurrency.Zero());
           return Concurrency.Combine($3,Concurrency.Delay(function()
           {
