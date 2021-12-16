@@ -29,11 +29,8 @@ module Templating =
                 a [attr.href (ctx.Link act)] [text txt]
              ]
         [
-            // "Home" => EndPoint.Home
             "Twitter" => EndPoint.Twitter
             "Account" => EndPoint.Account
-            // "Welcome" => EndPoint.Welcome
-            // "Register" => EndPoint.Register
         ]
 
     let FollowList (ctx: Context<EndPoint>) =
@@ -64,13 +61,11 @@ module Templating =
                 | Some u -> u.Split(",")
             let userId = Array.get userinfo 0
             let content = Server.getTweetsList userId operation ""
-            printfn $"[TweetsList]aaaaa {content}"  
             return List.map (fun cnt -> 
                 let txt = cnt?text.AsString()
                 let tweetId = cnt?tweetId.AsString()
                 let userId = cnt?userId.AsString()
                 let timestamp = cnt?timestamp.AsString()
-                printfn $"$$$$$$$$$$ check content {txt}"
                 div [attr.``class`` "card"; attr.style "width: 100%;"] [
                     div [attr.``class`` "card-body"] [
                         h5 [attr.``class`` "card-title"] [text userId]
@@ -131,7 +126,6 @@ module Templating =
         Content.Page(
             Templates.RegisterTemplate()
                 .Title("Create your account")
-                //.MenuBar(MenuBar ctx action)
                 .Body(body)
                 .Doc()
         )
@@ -140,7 +134,6 @@ module Templating =
         Content.Page(
             Templates.AccountTemplate()
                 .MenuBar(MenuBar ctx action)
-                //.MenuBar(MenuBar ctx action)
                 .Body(body)
                 .FollowList(FollowList ctx)
                 .Doc()
@@ -148,32 +141,6 @@ module Templating =
         
 module Site =
     open WebSharper.UI.Html
-
-    // let HomePage (ctx: Context<EndPoint>) =
-    //     async {
-    //         let! username = ctx.UserSession.GetLoggedInUser()
-    //         let welcomeContent = 
-    //             match username with
-    //                 | None -> 
-    //                     div [] [
-    //                         h1 [] [text ("Welcome, stranger!")]
-    //                         client <@Client.guest()@>
-    //                     ]
-    //                 | Some u ->   
-    //                     let userinfo = u.Split(",")
-    //                     div [] [
-    //                         h1 [] [text ("Welcome back, " + userinfo.[0] + "!")]
-    //                         client <@Client.LoggedInUser()@>
-    //                     ]
-    //         return! Templating.Main ctx EndPoint.Home "Home" [
-    //             welcomeContent
-    //             div [] [client <@ Client.Main() @>]
-    //             // div [] [client <@ Client.Test() @>]
-    //             div [] [text "!!!!"]
-    //         ]
-    //     }
-        
-        
 
     let Twitter (ctx: Context<EndPoint>) =
         let buildEndPoint(url: string): WebSocketEndpoint<Res, Push> =
@@ -194,11 +161,6 @@ module Site =
                             h1 [] [text ("Welcome back, " + userinfo.[0] + "!")]
                             client <@Client.LoggedInUser()@>
                         ]
-//            let tweetsDemoPanel =
-//                div [attr.``class`` "jumbotron"; attr.``id`` "tweetsDemoPanel"] [
-//                    h1 [] [text ("Result")]
-//                    div [] [client <@ TweetPushProcess.ProcessBinding(ep) @>] 
-//                ]
             return! Templating.Twitter ctx EndPoint.Twitter [
                 welcomeContent
                 div [] [client <@ Client.Twitter(ep) @>]

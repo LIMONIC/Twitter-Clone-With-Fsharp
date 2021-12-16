@@ -595,7 +595,7 @@
    };
   });
  };
- Templating.Twitter2$102$28=function()
+ Templating.Twitter2$97$28=function()
  {
   return function(e)
   {
@@ -605,7 +605,7 @@
    self.document.getElementById("TwitterList4").innerHTML=dom;
   };
  };
- Templating.Twitter2$93$24=function()
+ Templating.Twitter2$88$24=function()
  {
   return function(e)
   {

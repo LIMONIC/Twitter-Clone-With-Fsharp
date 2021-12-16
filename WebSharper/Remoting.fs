@@ -231,10 +231,9 @@ module Server =
                     msg <- $"Query operation not correct! operation: {operation}"
                     resJsonStr <- Utils.parseRes status msg """[]"""
     let Hi = HandlerImpl()
+//    DB.initDb()
     connection.Open()
 
-    [<Rpc>]
-    let DoTest str = printfn "!!!AAAAAAA!!! %s" str
     [<Rpc>]
     let DoDBInit () = 
         DB.initDb()

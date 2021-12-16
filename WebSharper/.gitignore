@@ -16,3 +16,6 @@ SQLiteTest
 .fake
 .idea
 wwwroot
+.idea/
+.vs/
+test.fsx
