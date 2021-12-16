@@ -64,17 +64,21 @@ module Templating =
                 | Some u -> u.Split(",")
             let userId = Array.get userinfo 0
             let content = Server.getTweetsList userId operation ""
+            printfn $"[TweetsList]aaaaa {content}"  
             return List.map (fun cnt -> 
                 let txt = cnt?text.AsString()
                 let tweetId = cnt?tweetId.AsString()
                 let userId = cnt?userId.AsString()
                 let timestamp = cnt?timestamp.AsString()
-                div [] [
-                    a [attr.``class`` "list-group-item"] [
-                        p [] [text ("tweetId: " + tweetId)]
-                        p [] [text ("userId: " + userId)]
-                        p [] [text ("Time: " + timestamp)]
-                        p [] [text txt]
+                printfn $"$$$$$$$$$$ check content {txt}"
+                div [attr.``class`` "card"; attr.style "width: 100%;"] [
+                    div [attr.``class`` "card-body"] [
+                        h5 [attr.``class`` "card-title"] [text userId]
+                        p [attr.``class`` "card-text"] [text txt]
+                        ul [attr.``class`` "list-group list-group-flush"] [
+                            li [attr.``class`` "list-group-item fs-6 fw-light"] [text ("tweetId: " + tweetId)]
+                            li [attr.``class`` "list-group-item fs-6 fw-light"] [text ("Time: " + timestamp)]
+                        ]
                     ]
                 ]
             ) content
@@ -82,6 +86,7 @@ module Templating =
         |> Async.RunSynchronously
 
     let Twitter2 ctx =
+        printfn "!!!!!!!!!!!!!!!%A" (TweetsList ctx  "all")
         Templates.TwitterTemplate.TwitterForm2()
             .TwitterList1(TweetsList ctx  "all")
             .TwitterList2(TweetsList ctx "subscribe")
@@ -238,7 +243,6 @@ module Site =
     let Main =
         Application.MultiPage (fun ctx endpoint ->
             match endpoint with
-            // | EndPoint.Home -> HomePage ctx
             | EndPoint.Twitter -> Twitter ctx
             | EndPoint.Welcome -> WelcomePage ctx
             | EndPoint.Register -> RegisterPage ctx

@@ -118,7 +118,6 @@ module Client =
                     let status = resobj?status
                     Console.Log(status)
                     if status = "success" then 
-                        Console.Log("111")
                         JS.Window.Location.Replace("/")
                 }
                 |> Async.StartImmediate
@@ -217,45 +216,21 @@ module Client =
                                 Console.Log(res)
                                 let resObj = JSON.Parse(res)
                                 let content = try resObj?content with _-> [||]
-//                                let card = cardComponent
-//                                               content.[0]?userId
-//                                               content.[0]?text
-//                                               content.[0]?tweetId
-//                                               content.[0]?timestamp
-                                
                                 let div = JS.Document.GetElementById("tweetsDemoPanel")
-                                let liTweetId = JS.Document.CreateElement("li")
-                                liTweetId.SetAttribute("class", "list-group-item fs-6 fw-light")
-                                liTweetId.AppendChild(JS.Document.CreateTextNode(content.[0]?tweetId)) |> ignore
-                                let liTimestamp = JS.Document.CreateElement("li")
-                                liTimestamp.SetAttribute("class", "list-group-item fs-6 fw-light")
-                                liTimestamp.AppendChild(JS.Document.CreateTextNode(content.[0]?timestamp)) |> ignore
-                                let ul = JS.Document.CreateElement("ul")
-                                ul.SetAttribute("class", "list-group list-group-flush")
-                                ul.AppendChild(liTweetId) |> ignore
-                                ul.AppendChild(liTimestamp) |> ignore
-                                let divCardFoot = JS.Document.CreateElement("div")
-                                divCardFoot.SetAttribute("class", "card-footer")
-                                divCardFoot.AppendChild(ul) |> ignore
-                                
-                                let cardTil = JS.Document.CreateElement("h5")
-                                cardTil.SetAttribute("class", "card-title")
-                                cardTil.AppendChild(JS.Document.CreateTextNode(content.[0]?userId)) |> ignore
-                                let cardText = JS.Document.CreateElement("p")
-                                cardText.SetAttribute("class", "card-text")
-                                cardText.AppendChild(JS.Document.CreateTextNode(content.[0]?text)) |> ignore
-                                let divCardBody = JS.Document.CreateElement("div")
-                                divCardBody.SetAttribute("class", "card-body")
-                                divCardBody.AppendChild(cardTil) |> ignore
-                                divCardBody.AppendChild(cardText) |> ignore
-                                
                                 let divCard = JS.Document.CreateElement("div")
                                 divCard.SetAttribute("class", "card")
-                                divCard.SetAttribute("style", "width: 40rem;")
-                                divCard.AppendChild(divCardBody) |> ignore
-                                divCard.AppendChild(divCardFoot) |> ignore
-
-                                div.AppendChild(divCard) |> ignore
+                                let html = $"<div class=\"card\">
+                                                    <div class=\"card-body\">
+                                                        <h5 class=\"card-title\">{content.[0]?userId}</h5>
+                                                        <p class=\"card-text\">{content.[0]?text}</p>
+                                                        <ul class=\"list-group list-group-flush\">
+                                                          <li class=\"list-group-item fs-6 fw-light\">tweetId: {content.[0]?tweetId}</li>
+                                                          <li class=\"list-group-item fs-6 fw-light\">Time: {content.[0]?timestamp}</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>"
+                                divCard.InnerHTML <- html
+                                div.Prepend(divCard)
                             return state + 1
                         | Close ->
                             Console.Log("WebSocket Connection Close")

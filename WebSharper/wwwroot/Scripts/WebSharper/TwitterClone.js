@@ -1,13 +1,13 @@
 (function(Global)
 {
  "use strict";
- var WebSharper,TweetProps,Client,TweetPushProcess,TwitterClone_JsonEncoder,TwitterClone_Templates,TwitterClone_JsonDecoder,Strings,IntelliFactory,Runtime,Utils,console,Concurrency,Remoting,AjaxRemotingProvider,JSON,Arrays,UI,Var$1,JavaScript,Promise,AspNetCore,WebSocket,Client$1,WithEncoding,Templating,Runtime$1,Server,ProviderBuilder,Handler,TemplateInstance,Doc,AttrProxy,Client$2,Templates,ClientSideJson,Provider;
+ var WebSharper,Client,TweetPushProcess,Templating,TwitterClone_Templates,TwitterClone_JsonEncoder,TwitterClone_JsonDecoder,Strings,IntelliFactory,Runtime,Utils,console,Concurrency,Remoting,AjaxRemotingProvider,JSON,Arrays,UI,Var$1,JavaScript,Promise,AspNetCore,WebSocket,Client$1,WithEncoding,Templating$1,Runtime$1,Server,ProviderBuilder,Handler,TemplateInstance,List,Doc,AttrProxy,Client$2,Templates,ClientSideJson,Provider;
  WebSharper=Global.WebSharper=Global.WebSharper||{};
- TweetProps=WebSharper.TweetProps=WebSharper.TweetProps||{};
  Client=WebSharper.Client=WebSharper.Client||{};
  TweetPushProcess=WebSharper.TweetPushProcess=WebSharper.TweetPushProcess||{};
- TwitterClone_JsonEncoder=Global.TwitterClone_JsonEncoder=Global.TwitterClone_JsonEncoder||{};
+ Templating=WebSharper.Templating=WebSharper.Templating||{};
  TwitterClone_Templates=Global.TwitterClone_Templates=Global.TwitterClone_Templates||{};
+ TwitterClone_JsonEncoder=Global.TwitterClone_JsonEncoder=Global.TwitterClone_JsonEncoder||{};
  TwitterClone_JsonDecoder=Global.TwitterClone_JsonDecoder=Global.TwitterClone_JsonDecoder||{};
  Strings=WebSharper&&WebSharper.Strings;
  IntelliFactory=Global.IntelliFactory;
@@ -27,26 +27,20 @@
  WebSocket=AspNetCore&&AspNetCore.WebSocket;
  Client$1=WebSocket&&WebSocket.Client;
  WithEncoding=Client$1&&Client$1.WithEncoding;
- Templating=UI&&UI.Templating;
- Runtime$1=Templating&&Templating.Runtime;
+ Templating$1=UI&&UI.Templating;
+ Runtime$1=Templating$1&&Templating$1.Runtime;
  Server=Runtime$1&&Runtime$1.Server;
  ProviderBuilder=Server&&Server.ProviderBuilder;
  Handler=Server&&Server.Handler;
  TemplateInstance=Server&&Server.TemplateInstance;
+ List=WebSharper&&WebSharper.List;
  Doc=UI&&UI.Doc;
  AttrProxy=UI&&UI.AttrProxy;
  Client$2=UI&&UI.Client;
  Templates=Client$2&&Client$2.Templates;
  ClientSideJson=WebSharper&&WebSharper.ClientSideJson;
  Provider=ClientSideJson&&ClientSideJson.Provider;
- TweetProps.New=function(username,content)
- {
-  return{
-   username:username,
-   content:content
-  };
- };
- Client.Twitter$278$23=function(resJsonStr,wsServiceProvider)
+ Client.Twitter$301$23=function(resJsonStr,wsServiceProvider)
  {
   return function(e)
   {
@@ -65,6 +59,7 @@
     {
      var contentArr,resObj;
      resJsonStr.Set(a);
+     self.location.reload();
      resObj=JSON.parse(a);
      if(resObj.status==="success")
       {
@@ -89,7 +84,7 @@
    })),null);
   };
  };
- Client.Twitter$257$21=function(resJsonStr,wsServiceProvider)
+ Client.Twitter$279$21=function(resJsonStr,wsServiceProvider)
  {
   return function(e)
   {
@@ -108,6 +103,7 @@
     {
      var contentArr,resObj;
      resJsonStr.Set(a);
+     self.location.reload();
      resObj=JSON.parse(a);
      if(resObj.status==="success")
       {
@@ -134,7 +130,7 @@
  };
  Client.Twitter=function(ep)
  {
-  var resJsonStr,wsServiceProvider,b,b$1,R,_this,t,t$1,p,i;
+  var resJsonStr,wsServiceProvider,b,b$1,t,t$1,p,i;
   resJsonStr=Var$1.Create$1("");
   wsServiceProvider=null;
   Promise.OfAsync((b=null,Concurrency.Delay(function()
@@ -159,7 +155,7 @@
        b$3=null;
        return Concurrency.Delay(function()
        {
-        var $1,$2,$3,content,div,liTweetId,liTimestamp,ul,divCardFoot,cardTil,cardText,divCardBody,divCard,res;
+        var $1,$2,$3,content,div,divCard,res;
         if(msg.$==0)
          {
           res=msg.$0.$0;
@@ -172,7 +168,10 @@
           {
            content=[];
           }
-          $3=(div=self.document.getElementById("tweetsDemoPanel"),liTweetId=self.document.createElement("li"),liTweetId.setAttribute("class","list-group-item fs-6 fw-light"),liTweetId.appendChild(self.document.createTextNode(Arrays.get(content,0).tweetId)),liTimestamp=self.document.createElement("li"),liTimestamp.setAttribute("class","list-group-item fs-6 fw-light"),liTimestamp.appendChild(self.document.createTextNode(Arrays.get(content,0).timestamp)),ul=self.document.createElement("ul"),ul.setAttribute("class","list-group list-group-flush"),ul.appendChild(liTweetId),ul.appendChild(liTimestamp),divCardFoot=self.document.createElement("div"),divCardFoot.setAttribute("class","card-footer"),divCardFoot.appendChild(ul),cardTil=self.document.createElement("h5"),cardTil.setAttribute("class","card-title"),cardTil.appendChild(self.document.createTextNode(Arrays.get(content,0).userId)),cardText=self.document.createElement("p"),cardText.setAttribute("class","card-text"),cardText.appendChild(self.document.createTextNode(Arrays.get(content,0).text)),divCardBody=self.document.createElement("div"),divCardBody.setAttribute("class","card-body"),divCardBody.appendChild(cardTil),divCardBody.appendChild(cardText),divCard=self.document.createElement("div"),divCard.setAttribute("class","card"),divCard.setAttribute("style","width: 40rem;"),divCard.appendChild(divCardBody),divCard.appendChild(divCardFoot),div.appendChild(divCard),Concurrency.Zero());
+          $3=(div=self.document.getElementById("tweetsDemoPanel"),divCard=self.document.createElement("div"),divCard.setAttribute("class","card"),divCard.innerHTML=function($4)
+          {
+           return $4("<div class=\"card\">\r\n                                                    <div class=\"card-body\">\r\n                                                        <h5 class=\"card-title\">"+Global.String(Arrays.get(content,0).userId)+"</h5>\r\n                                                        <p class=\"card-text\">"+Global.String(Arrays.get(content,0).text)+"</p>\r\n                                                        <ul class=\"list-group list-group-flush\">\r\n                                                          <li class=\"list-group-item fs-6 fw-light\">"+Global.String(Arrays.get(content,0).tweetId)+"</li>\r\n                                                          <li class=\"list-group-item fs-6 fw-light\">"+Global.String(Arrays.get(content,0).timestamp)+"</li>\r\n                                                        </ul>\r\n                                                    </div>\r\n                                                </div>");
+          }(Global.id),div.prepend.apply(div,[divCard]),Concurrency.Zero());
           return Concurrency.Combine($3,Concurrency.Delay(function()
           {
            return Concurrency.Return(state+1);
@@ -192,7 +191,7 @@
     $0:x
    };
   });
-  return(b$1=(R=resJsonStr.get_View(),(_this=(t=(t$1=new ProviderBuilder.New$1(),(t$1.h.push(Handler.EventQ2(t$1.k,"ontweet",function()
+  return(b$1=(t=(t$1=new ProviderBuilder.New$1(),(t$1.h.push(Handler.EventQ2(t$1.k,"ontweet",function()
   {
    return t$1.i;
   },function(e)
@@ -212,6 +211,7 @@
     {
      var contentArr,resObj;
      resJsonStr.Set(a);
+     self.location.reload();
      resObj=JSON.parse(a);
      if(resObj.status==="success")
       {
@@ -254,6 +254,7 @@
     {
      var contentArr,resObj;
      resJsonStr.Set(a);
+     self.location.reload();
      resObj=JSON.parse(a);
      if(resObj.status==="success")
       {
@@ -276,13 +277,9 @@
       return Concurrency.Zero();
     });
    })),null);
-  })),t)),(_this.h.push({
-   $:2,
-   $0:"result",
-   $1:R
-  }),_this))),(p=Handler.CompleteHoles(b$1.k,b$1.h,[["tweetcontent",0],["tweettags",0],["tweetmentions",0],["tweetid",0],["retweettags",0],["retweetmentions",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.twitterform(p[0])),b$1.i=i,i))).get_Doc();
+  })),t)),(p=Handler.CompleteHoles(b$1.k,b$1.h,[["tweetcontent",0],["tweettags",0],["tweetmentions",0],["tweetid",0],["retweettags",0],["retweetmentions",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.twitterform(p[0])),b$1.i=i,i))).get_Doc();
  };
- Client.Account$162$24=function()
+ Client.Account$175$24=function()
  {
   return function(e)
   {
@@ -294,12 +291,13 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoUnfollow:-1915423140",[unfollowID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
   };
  };
- Client.Account$152$22=function()
+ Client.Account$164$22=function()
  {
   return function(e)
   {
@@ -311,6 +309,7 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoFollow:-1915423140",[followID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
@@ -333,6 +332,7 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoFollow:-1915423140",[followID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
@@ -349,12 +349,20 @@
     return Concurrency.Bind((new AjaxRemotingProvider.New()).Async("TwitterClone:WebSharper.Server.DoUnfollow:-1915423140",[unfollowID]),function(a)
     {
      console.log(a);
+     self.location.reload();
      return Concurrency.Zero();
     });
    })),null);
   })),t)),(p=Handler.CompleteHoles(b.k,b.h,[["followid",0],["unfollowid",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.accountform(p[0])),b.i=i,i))).get_Doc();
  };
- Client.Register$131$24=function()
+ Client.FollowList=function(userId)
+ {
+  return List.map(function(txt)
+  {
+   return Doc.Element("div",[],[Doc.Element("a",[AttrProxy.Create("class","list-group-item")],[Doc.TextNode(txt)])]);
+  },(new AjaxRemotingProvider.New()).Sync("TwitterClone:WebSharper.Server.getFollowersList:-1216520703",[userId]));
+ };
+ Client.Register$130$24=function()
  {
   return function(e)
   {
@@ -418,7 +426,7 @@
      var status;
      status=JSON.parse(a).status;
      console.log(status);
-     return status==="success"?(console.log("111"),self.location.replace("/"),Concurrency.Zero()):Concurrency.Zero();
+     return status==="success"?(self.location.replace("/"),Concurrency.Zero()):Concurrency.Zero();
     });
    })),null);
   };
@@ -442,7 +450,7 @@
      var status;
      status=JSON.parse(a).status;
      console.log(status);
-     return status==="success"?(console.log("111"),self.location.replace("/"),Concurrency.Zero()):Concurrency.Zero();
+     return status==="success"?(self.location.replace("/"),Concurrency.Zero()):Concurrency.Zero();
     });
    })),null);
   })),t)),(p=Handler.CompleteHoles(b.k,b.h,[["inputusername",0],["inputuserpass",0]]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.loginblock$1(p[0])),b.i=i,i))).get_Doc();
@@ -545,7 +553,7 @@
  };
  TweetPushProcess.ProcessBinding=function(ep)
  {
-  var wsServiceProvider,b,b$1,p,i;
+  var wsServiceProvider,b;
   wsServiceProvider=null;
   Promise.OfAsync((b=null,Concurrency.Delay(function()
   {
@@ -557,16 +565,16 @@
     return(TwitterClone_JsonDecoder.j())(JSON.parse(a));
    },ep,function()
    {
-    var b$2;
-    b$2=null;
+    var b$1;
+    b$1=null;
     return Concurrency.Delay(function()
     {
      return Concurrency.Return([0,function(state)
      {
       return function(msg)
       {
-       var b$3;
-       b$3=null;
+       var b$2;
+       b$2=null;
        return Concurrency.Delay(function()
        {
         var res,resObj,div,li;
@@ -586,13 +594,26 @@
     $0:x
    };
   });
-  return(b$1=new ProviderBuilder.New$1(),(p=Handler.CompleteHoles(b$1.k,b$1.h,[]),(i=new TemplateInstance.New(p[1],TwitterClone_Templates.twitterdemo(p[0])),b$1.i=i,i))).get_Doc();
  };
- TwitterClone_JsonEncoder.j=function()
+ Templating.Twitter2$102$28=function()
  {
-  return TwitterClone_JsonEncoder._v?TwitterClone_JsonEncoder._v:TwitterClone_JsonEncoder._v=(Provider.EncodeUnion(void 0,{
-   tweetId:0
-  },[["Info",[["$0","userId",Provider.Id(),0],["$1","tweetId",Provider.Id(),0]]]]))();
+  return function(e)
+  {
+   var mention,dom;
+   mention=e.Vars.Hole("mentionsearch").$1.Get();
+   dom=(new AjaxRemotingProvider.New()).Sync("TwitterClone:WebSharper.Server.getTweetsListString:-1876397925",["mention",mention]);
+   self.document.getElementById("TwitterList4").innerHTML=dom;
+  };
+ };
+ Templating.Twitter2$93$24=function()
+ {
+  return function(e)
+  {
+   var tag,dom;
+   tag=e.Vars.Hole("tabsearch").$1.Get();
+   dom=(new AjaxRemotingProvider.New()).Sync("TwitterClone:WebSharper.Server.getTweetsListString:-1876397925",["tag",tag]);
+   self.document.getElementById("TwitterList3").innerHTML=dom;
+  };
  };
  TwitterClone_Templates.twitterform=function(h)
  {
@@ -634,13 +655,11 @@
    $0:"mainform"
   },h):void 0;
  };
- TwitterClone_Templates.twitterdemo=function(h)
+ TwitterClone_JsonEncoder.j=function()
  {
-  Templates.LoadLocalTemplates("twitterdemopanel");
-  return h?Templates.NamedTemplate("twitterdemopanel",{
-   $:1,
-   $0:"twitterdemo"
-  },h):void 0;
+  return TwitterClone_JsonEncoder._v?TwitterClone_JsonEncoder._v:TwitterClone_JsonEncoder._v=(Provider.EncodeUnion(void 0,{
+   tweetId:0
+  },[["Info",[["$0","userId",Provider.Id(),0],["$1","tweetId",Provider.Id(),0]]]]))();
  };
  TwitterClone_JsonDecoder.j=function()
  {

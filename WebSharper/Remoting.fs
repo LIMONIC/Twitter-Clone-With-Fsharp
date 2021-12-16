@@ -10,23 +10,25 @@ open System.Collections.Generic
 open FSharp
 open FSharp.Data
 open FSharp.Data.JsonExtensions
+open WebSharper.AspNetCore.WebSocket
 open WebSharper.Json
 open Utils
 open Database
+open WebSocketServiceProvider
 
 module Server =
 
-    //printfn "%s" connection.FileName
-
     // Debug printout swithces
     let debug = true
-    
+    let mutable authedUserSet = Set.empty<string>
     let testInfo = true
 
     type HandlerImpl() =
         member this.isUserLoggedIn userId =
-            let ctx = Web.Remoting.GetContext()
-            ctx.UserSession.IsAvailable
+            printfn $"[isUserLoggedIn] {WebSocketServiceProvider.authedUserMap.Count} : {userId} : {WebSocketServiceProvider.authedUserMap.ContainsKey(userId)}"
+            WebSocketServiceProvider.authedUserMap.ContainsKey(userId) || authedUserSet.Contains(userId)
+//            let ctx = Web.Remoting.GetContext()
+//            ctx.UserSession.IsAvailable
 
     // Register 
         member this.registerImpl (userId, password, nickName, email, (msg: byref<_>)) =
@@ -108,6 +110,7 @@ module Server =
             let mutable isSuccess = true
             let mutable text = ""
             // user must already logged in
+//            let ctx = Web.Remoting.GetContext()
             if not (this.isUserLoggedIn userId) then
                 msg <- "User is not logged in, please log in again."
                 isSuccess <- false
@@ -137,6 +140,7 @@ module Server =
         member this.isValidForFollowOrUnfollow (userId, targetUserId, (msg: byref<_>)) = 
             let mutable flag = false
             // user must already logged in
+//            let ctx = Web.Remoting.GetContext()
             if not (this.isUserLoggedIn userId) then
                 msg <- "User is not logged in, please log in again."
             // target must not be null
@@ -261,6 +265,7 @@ module Server =
             if Hi.logoutImpl(userId, password, &msg) then
                 do! ctx.UserSession.Logout()
                 status <- "success"
+                authedUserSet <- authedUserSet.Remove(userId)
             resJsonStr <- Utils.parseRes status msg """[]"""
             return resJsonStr
         }
@@ -275,7 +280,7 @@ module Server =
         let ctx = Web.Remoting.GetContext()
         async {
             if Hi.loginImpl(userId, password, &msg) then
-//                authedUserMap <- authedUserMap.Add(userId, "") // TODO: login token
+                authedUserSet <- authedUserSet.Add(userId) // TODO: login token
                 do! ctx.UserSession.LoginUser(userId + "," + password, false)
                 status <- "success"
             resJsonStr <- Utils.parseRes status msg """[]"""
@@ -436,7 +441,17 @@ module Server =
                 let tweetId = cnt?tweetId.AsString()
                 let userId = cnt?userId.AsString()
                 let timestamp = cnt?timestamp.AsString()
-                dom <- dom + $"<div><a class = \"list-group-item\"><p>{tweetId}</p><p>{userId}</p><p>{timestamp}</p><p>{txt}</p></a></div>"
+                dom <- dom +
+                       $"<div class=\"card\">
+                            <div class=\"card-body\">
+                                <h5 class=\"card-title\">{userId}</h5>
+                                <p class=\"card-text\">{txt}</p>
+                                <ul class=\"list-group list-group-flush\">
+                                  <li class=\"list-group-item fs-6 fw-light\">{tweetId}</li>
+                                  <li class=\"list-group-item fs-6 fw-light\">{timestamp}</li>
+                                </ul>
+                            </div>
+                         </div>"
             ) content
             return dom
         }
@@ -449,13 +464,6 @@ module Server =
         let mutable msg = "Internal error."
         let mutable resJsonStr = ""
         async {
-            // let ctx = Web.Remoting.GetContext()
-            // let! session = ctx.UserSession.GetLoggedInUser()
-            // let userinfo = 
-            //     match session with
-            //     | None -> [|"";""|]
-            //     | Some u -> u.Split(",")
-            // let userId = Array.get userinfo 0
             let mutable tagId = ""
             let mutable mention = ""
             match operation with
@@ -466,11 +474,11 @@ module Server =
             | _ -> 
                 mention <- ""
             Hi.queryImpl(uid, operation, tagId, mention, &msg, &status, &resJsonStr)
-            let mutable dom = ""
+            printfn $"[getTweetsList][resJsonStr]{resJsonStr}"
+            let mutable dom = "resJsonStr"
             let resparse = JsonValue.Parse(resJsonStr)
             let content = resparse?content.AsArray() |> Array.toList
             return content
-            
         }
         |> Async.RunSynchronously
         
